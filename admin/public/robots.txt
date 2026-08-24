@@ -1,0 +1,13 @@
+# ============================================================================
+# MONEYLINK — ROBOTS.TXT
+# https://moneylink.sn & https://admin.moneylink.sn
+# ============================================================================
+
+User-agent: *
+Allow: /
+Allow: /assets/
+Disallow: /api/
+Disallow: /admin/internal/
+
+# Plan du site XML
+Sitemap: https://moneylink.sn/sitemap.xml

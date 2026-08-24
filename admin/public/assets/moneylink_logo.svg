@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 180" width="680" height="180">
+  <defs>
+    <linearGradient id="mkFullGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E59B" />
+      <stop offset="40%" stop-color="#00A86B" />
+      <stop offset="100%" stop-color="#00683F" />
+    </linearGradient>
+    <linearGradient id="mkFullBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.08" />
+    </linearGradient>
+    <filter id="mkFullShadow" x="-15%" y="-15%" width="130%" height="135%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#00A86B" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- Badge MK Gauche -->
+  <g transform="translate(20, 20)">
+    <rect x="0" y="0" width="140" height="140" rx="38" fill="url(#mkFullGrad)" filter="url(#mkFullShadow)" />
+    <rect x="0" y="0" width="140" height="140" rx="38" fill="none" stroke="url(#mkFullBorder)" stroke-width="2.5" />
+    <g fill="#FFFFFF" transform="translate(18, 28) scale(0.68)">
+      <path d="M12 110 V14 h18 l18 36 18-36 h18 v96 h-16 v-60 l-14 30 h-12 l-14-30 v60 Z" />
+      <path d="M88 14 h18 v36 l22-36 h20 l-26 42 28 50 h-22 l-20-36 v36 h-18 Z" />
+    </g>
+    <circle cx="120" cy="28" r="5" fill="#F59E0B" stroke="#FFFFFF" stroke-width="1.5" />
+  </g>
+
+  <!-- Texte MoneyLink -->
+  <text x="185" y="94" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Outfit', 'Inter', sans-serif" font-size="52" font-weight="800" fill="#0F172A" letter-spacing="-1.5">
+    Money<tspan fill="#00A86B">Link</tspan>
+  </text>
+  <text x="188" y="128" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif" font-size="15" font-weight="600" fill="#64748B" letter-spacing="0.5">
+    TIERS DE CONFIANCE &amp; SÉQUESTRE • SÉNÉGAL 🇸🇳
+  </text>
+</svg>

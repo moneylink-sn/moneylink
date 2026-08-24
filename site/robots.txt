@@ -1,0 +1,10 @@
+# ============================================================================
+# MONEYLINK SÉNÉGAL — FICHIER ROBOTS.TXT (PRODUCTION)
+# Site Public : https://moneylink.sn
+# ============================================================================
+
+User-agent: *
+Allow: /
+
+# Sitemap Officiel
+Sitemap: https://moneylink.sn/sitemap.xml

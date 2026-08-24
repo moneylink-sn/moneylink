@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Page d'Accueil & Présentation -->
+  <url>
+    <loc>https://moneylink.sn/</loc>
+    <lastmod>2026-08-24</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <!-- Section Séquestre & Fonctionnalités -->
+  <url>
+    <loc>https://moneylink.sn/#sequestre</loc>
+    <lastmod>2026-08-24</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <!-- Section Tarifs & Abonnements -->
+  <url>
+    <loc>https://moneylink.sn/#tarifs</loc>
+    <lastmod>2026-08-24</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <!-- Section Application Mobile -->
+  <url>
+    <loc>https://moneylink.sn/#mobile</loc>
+    <lastmod>2026-08-24</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <!-- Section Sécurité & Confiance -->
+  <url>
+    <loc>https://moneylink.sn/#securite</loc>
+    <lastmod>2026-08-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+</urlset>
