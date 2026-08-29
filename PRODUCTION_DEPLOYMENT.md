@@ -196,7 +196,26 @@ npm run build
 
 ## 6. Déploiement du Site Web Public MoneyLink
 
-Le site web public (Landing page, présentation des fonctionnalités, tarifs, CGU et liens de téléchargement d'application) est servi statiquement à la racine du domaine `moneylink.sn`.
+Le site web public (Landing page, présentation des fonctionnalités, tarifs, CGU et simulateur de séquestre) est configuré pour un hébergement statique haute performance (Render Static Site, Nginx ou Cloudflare Pages).
+
+### A. Paramètres de Déploiement Render (Static Site)
+
+| Paramètre Render | Valeur |
+| :--- | :--- |
+| **Service Type** | `Static Site` |
+| **Name** | `moneylink-site` |
+| **Root Directory** | `site` |
+| **Build Command** | `npm run build` *(ou laisser vide)* |
+| **Publish Directory** | `.` |
+| **Routes / Rewrites** | Rewrite `/*` vers `/index.html` |
+| **Variables d'environnement** | `API_URL=https://moneylink-kd6v.onrender.com` |
+| **Domaines Personnalisés** | `moneylink.sn`, `www.moneylink.sn` |
+
+### B. Commande Locale / Workspace
+```bash
+npm run build:site
+```
+
 
 ---
 

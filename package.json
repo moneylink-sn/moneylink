@@ -6,11 +6,13 @@
   "description": "MoneyLink Fintech Platform — Séquestre (Escrow), Paiements & Épargne au Sénégal",
   "workspaces": [
     "admin",
-    "backend"
+    "backend",
+    "site"
   ],
   "scripts": {
-    "build": "npm run build --workspace=admin",
+    "build": "npm run build --workspace=admin && npm run build --workspace=site",
     "build:admin": "npm run build --workspace=admin",
+    "build:site": "npm run build --workspace=site",
     "start:backend": "npm run start --workspace=backend",
     "test:backend": "npm run test --workspace=backend",
     "db:init": "node database/init.js",

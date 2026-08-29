@@ -30,7 +30,7 @@ services:
       - key: ESCROW_FEE_PERCENT
         value: 1.0
       - key: CORS_ORIGIN
-        value: https://moneylink-1.onrender.com,https://moneylink.sn,https://www.moneylink.sn,https://admin.moneylink.sn
+        value: https://moneylink-1.onrender.com,https://moneylink-site.onrender.com,https://moneylink.sn,https://www.moneylink.sn,https://admin.moneylink.sn
 
   # ----------------------------------------------------------------------------
   # 2. Dashboard Admin (Static Site React / Vite)
@@ -47,3 +47,20 @@ services:
     envVars:
       - key: VITE_API_URL
         value: https://moneylink-kd6v.onrender.com/api
+
+  # ----------------------------------------------------------------------------
+  # 3. Site Web Public Landing Page (Static Site)
+  # ----------------------------------------------------------------------------
+  - type: static
+    name: moneylink-site
+    rootDir: site
+    buildCommand: npm run build
+    staticPublishPath: .
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: API_URL
+        value: https://moneylink-kd6v.onrender.com
+

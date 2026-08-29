@@ -1,0 +1,21 @@
+{
+  "name": "moneylink-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MoneyLink Public Showcase & Landing Page",
+  "scripts": {
+    "build": "echo 'Site MoneyLink prêt pour le déploiement statique'",
+    "start": "npx serve . -p 3000",
+    "preview": "npx serve . -p 3000"
+  },
+  "keywords": [
+    "moneylink",
+    "fintech",
+    "senegal",
+    "escrow",
+    "landing-page"
+  ],
+  "author": "MoneyLink Senior Engineering Team",
+  "license": "MIT"
+}
