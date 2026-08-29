@@ -12,7 +12,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE IF NOT EXISTS analytics_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_type VARCHAR(50) NOT NULL,
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+   user_id UUID,
     session_id VARCHAR(100),
     platform VARCHAR(30) NOT NULL DEFAULT 'WEB_LANDING',
     metadata JSONB DEFAULT '{}'::jsonb,
