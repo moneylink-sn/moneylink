@@ -9,6 +9,9 @@ import { AnalyticsController } from '../controllers/analyticsController.js';
 import { authenticateJWT } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roles.js';
 
+import { validate } from '../middleware/validate.js';
+import { updateUserStatusSchema, resolveDisputeSchema } from '../validators/schemas.js';
+
 const router = Router();
 
 // Toutes les routes admin nécessitent le rôle ADMIN
@@ -17,9 +20,9 @@ router.use(authenticateJWT, requireRole('ADMIN'));
 router.get('/dashboard', AdminController.getDashboardStats);
 router.get('/statistics', AnalyticsController.getAdminStatistics);
 router.get('/users', AdminController.listUsers);
-router.put('/users/:id/status', AdminController.updateUserStatus);
+router.put('/users/:id/status', validate(updateUserStatusSchema), AdminController.updateUserStatus);
 router.get('/disputes', AdminController.listDisputes);
-router.post('/disputes/:id/resolve', AdminController.resolveDispute);
+router.post('/disputes/:id/resolve', validate(resolveDisputeSchema), AdminController.resolveDispute);
 router.get('/subscriptions', SubscriptionController.listAdminSubscriptions);
 
 export default router;

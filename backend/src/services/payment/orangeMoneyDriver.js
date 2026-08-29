@@ -85,7 +85,14 @@ export class OrangeMoneyDriver extends PaymentDriverInterface {
         .update(typeof rawBody === 'string' ? rawBody : JSON.stringify(rawBody))
         .digest('hex');
 
-      return crypto.timingSafeEqual(Buffer.from(signatureHeader), Buffer.from(expectedSignature));
+      const sigBuf = Buffer.from(signatureHeader, 'utf8');
+      const expectedBuf = Buffer.from(expectedSignature, 'utf8');
+
+      if (sigBuf.length !== expectedBuf.length) {
+        return false;
+      }
+
+      return crypto.timingSafeEqual(sigBuf, expectedBuf);
     } catch (err) {
       console.error('Erreur validation signature Orange Money :', err);
       return false;

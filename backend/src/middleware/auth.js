@@ -1,11 +1,26 @@
 /**
  * MoneyLink — Middleware d'Authentification JWT
+ * Vérification sur PostgreSQL avec fallback sécurisé mémoire
  */
 
 import jwt from 'jsonwebtoken';
-import { memoryStore } from '../config/db.js';
+import { memoryStore, query, pool } from '../config/db.js';
 
-export function authenticateJWT(req, res, next) {
+/**
+ * Helper de récupération sécurisée du secret JWT
+ */
+function getJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || (process.env.NODE_ENV === 'production' && secret === 'moneylink_super_secure_fintech_jwt_secret_key_2026_sn')) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('🚨 ERREUR CRITIQUE PRODUCTION: JWT_SECRET manquant ou non sécurisé.');
+    }
+    return 'moneylink_super_secure_fintech_jwt_secret_key_2026_sn';
+  }
+  return secret;
+}
+
+export async function authenticateJWT(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -16,13 +31,41 @@ export function authenticateJWT(req, res, next) {
   }
 
   const token = authHeader.split(' ')[1];
-  const secret = process.env.JWT_SECRET || 'moneylink_super_secure_fintech_jwt_secret_key_2026_sn';
+
+  let secret;
+  try {
+    secret = getJwtSecret();
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: 'Erreur interne de configuration de sécurité.'
+    });
+  }
 
   try {
     const decoded = jwt.verify(token, secret);
-    
-    // Recherche utilisateur dans le store
-    const user = memoryStore.users.find(u => u.id === decoded.id && u.status === 'ACTIVE');
+    let user = null;
+
+    // 1. Recherche dans PostgreSQL si configuré
+    if (pool) {
+      try {
+        const userRes = await query(
+          'SELECT id, phone, email, first_name, last_name, role, status FROM users WHERE id = $1 AND status = $2 LIMIT 1',
+          [decoded.id, 'ACTIVE']
+        );
+        if (userRes && userRes.rows && userRes.rows.length > 0) {
+          user = userRes.rows[0];
+        }
+      } catch (dbErr) {
+        if (process.env.NODE_ENV === 'production') throw dbErr;
+      }
+    }
+
+    // 2. Fallback memoryStore si non trouvé en base (mode dev / tests)
+    if (!user) {
+      user = memoryStore.users.find(u => u.id === decoded.id && u.status === 'ACTIVE');
+    }
+
     if (!user) {
       return res.status(401).json({
         success: false,

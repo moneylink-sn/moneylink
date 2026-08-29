@@ -10,7 +10,7 @@ import { memoryStore } from '../config/db.js';
 export class NotificationController {
   static async getNotifications(req, res, next) {
     try {
-      const notifications = notificationService.getUserNotifications(req.user.id);
+      const notifications = await notificationService.getUserNotifications(req.user.id);
       return res.status(200).json({ success: true, data: notifications });
     } catch (err) {
       next(err);
@@ -20,7 +20,7 @@ export class NotificationController {
   static async markAsRead(req, res, next) {
     try {
       const { id } = req.params;
-      const notification = notificationService.markAsRead(id, req.user.id);
+      const notification = await notificationService.markAsRead(id, req.user.id);
       return res.status(200).json({ success: true, data: notification });
     } catch (err) {
       next(err);
@@ -29,10 +29,7 @@ export class NotificationController {
 
   static async markAllAsRead(req, res, next) {
     try {
-      memoryStore.notifications
-        .filter(n => n.user_id === req.user.id)
-        .forEach(n => { n.is_read = true; });
-
+      await notificationService.markAllAsRead(req.user.id);
       return res.status(200).json({ success: true, message: 'Toutes les notifications ont été marquées comme lues.' });
     } catch (err) {
       next(err);

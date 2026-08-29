@@ -43,8 +43,12 @@ const isOriginAllowed = (origin) => {
     return true;
   }
 
-  // Origines explicites ou wildcard global
-  if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+  // Origines explicites ou wildcard autorisé en dev / explicitement en prod
+  if ((!isProduction && allowedOrigins.includes('*')) || (isProduction && process.env.CORS_ORIGIN === '*')) {
+    return true;
+  }
+
+  if (allowedOrigins.includes(origin)) {
     return true;
   }
 
@@ -74,7 +78,7 @@ app.use(cors({
   optionsSuccessStatus: 200
 }));
 
-// Rate Limiting : 300 requêtes par 15 minutes par IP
+// Rate Limiting Général : 300 requêtes par 15 minutes par IP
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 300,
@@ -84,6 +88,19 @@ const limiter = rateLimit({
   }
 });
 app.use('/api', limiter);
+
+// Rate Limiting Spécifique Authentification : 60 tentatives par 15 minutes par IP
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: {
+    success: false,
+    error: 'Trop de tentatives de connexion ou inscription, veuillez patienter 15 minutes.'
+  }
+});
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+
 
 // Parsing JSON & URL-encoded
 app.use(express.json({ limit: '10mb' }));

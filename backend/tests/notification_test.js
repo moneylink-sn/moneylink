@@ -2,7 +2,11 @@
  * MoneyLink — Script de Test des Notifications Multi-Canal (Push, SMS, WhatsApp)
  */
 
-const BASE_URL = 'http://localhost:5000/api';
+import app from '../src/app.js';
+
+let server;
+const TEST_PORT = 5007;
+const BASE_URL = `http://localhost:${TEST_PORT}/api`;
 
 async function request(path, options = {}) {
   const url = `${BASE_URL}${path}`;
@@ -21,12 +25,14 @@ async function request(path, options = {}) {
 }
 
 async function runNotificationTests() {
+  server = app.listen(TEST_PORT);
   console.log('\n================================================================');
   console.log('  🔔 TEST DU MOTEUR DE NOTIFICATIONS MULTI-CANAL MONEYLINK');
   console.log('================================================================\n');
 
+
   try {
-    // 1. Connexion Client
+    // 1. Connexion Client & Admin
     const login = await request('/auth/login', {
       method: 'POST',
       body: { identifier: '+221770000004', password: 'Password123!' }
@@ -34,11 +40,18 @@ async function runNotificationTests() {
     const token = login.data.data.token;
     const authHeaders = { Authorization: `Bearer ${token}` };
 
+    const adminLogin = await request('/auth/login', {
+      method: 'POST',
+      body: { identifier: '+221770000001', password: 'Password123!' }
+    });
+    const adminToken = adminLogin.data.data.token;
+    const adminHeaders = { Authorization: `Bearer ${adminToken}` };
+
     // 2. Test Notification Paiement Séquestré (Push + SMS + WhatsApp)
     console.log('1️⃣ Envoi d’une alerte de paiement séquestré (Push, SMS Sénégal, WhatsApp)...');
     const dispatchRes = await request('/notifications/test-dispatch', {
       method: 'POST',
-      headers: authHeaders,
+      headers: adminHeaders,
       body: {
         phone: '+221770000004',
         templateKey: 'PAYMENT_ESCROW_LOCKED',
@@ -51,7 +64,7 @@ async function runNotificationTests() {
     console.log('\n2️⃣ Envoi d’une invitation à un marchand non encore inscrit (+221 78 500 11 22)...');
     const unregRes = await request('/notifications/test-dispatch', {
       method: 'POST',
-      headers: authHeaders,
+      headers: adminHeaders,
       body: {
         phone: '+221785001122',
         templateKey: 'MERCHANT_UNREGISTERED_INVITE',
@@ -64,9 +77,10 @@ async function runNotificationTests() {
     console.log('\n3️⃣ Déclenchement du Worker automatique de relance des Coffres d’Épargne (J-2)...');
     const jobRes = await request('/notifications/jobs/savings-reminders', {
       method: 'POST',
-      headers: authHeaders
+      headers: adminHeaders
     });
     console.log('   Statut Worker :', jobRes.data.message);
+
 
     // 5. Consultation des notifications In-App reçues
     console.log('\n4️⃣ Récupération des notifications In-App de l’utilisateur...');
@@ -78,6 +92,11 @@ async function runNotificationTests() {
     console.log('================================================================\n');
   } catch (err) {
     console.error('❌ Erreur lors du test :', err.message);
+    process.exitCode = 1;
+  } finally {
+    if (server) {
+      server.close();
+    }
   }
 }
 

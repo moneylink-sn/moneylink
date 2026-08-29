@@ -4,7 +4,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { memoryStore } from '../config/db.js';
+import { memoryStore, query, pool } from '../config/db.js';
 
 export const NotificationChannels = {
   IN_APP: 'IN_APP',
@@ -113,6 +113,25 @@ export class NotificationDispatcher {
         channel: 'PUSH',
         created_at: new Date().toISOString()
       };
+
+      if (pool) {
+        try {
+          query(`
+            INSERT INTO notifications (id, user_id, title, message, type, payload, is_read, channel, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, false, 'PUSH', NOW())
+          `, [
+            notificationId,
+            userId,
+            inAppNotif.title,
+            inAppNotif.message,
+            inAppNotif.type,
+            JSON.stringify(inAppNotif.payload)
+          ]).catch(() => {});
+        } catch {
+          // fallback silent
+        }
+      }
+
       memoryStore.notifications.unshift(inAppNotif);
       dispatchedLogs.push({ channel: 'IN_APP', status: 'DELIVERED', recipient: userId });
       dispatchedLogs.push({ channel: 'PUSH_FCM', status: 'SENT', recipient: userId });

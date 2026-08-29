@@ -97,7 +97,14 @@ export class WaveDriver extends PaymentDriverInterface {
         .update(payloadToSign)
         .digest('hex');
 
-      return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+      const sigBuf = Buffer.from(signature, 'utf8');
+      const expectedBuf = Buffer.from(expectedSignature, 'utf8');
+
+      if (sigBuf.length !== expectedBuf.length) {
+        return false;
+      }
+
+      return crypto.timingSafeEqual(sigBuf, expectedBuf);
     } catch (err) {
       console.error('Erreur validation signature Wave :', err);
       return false;

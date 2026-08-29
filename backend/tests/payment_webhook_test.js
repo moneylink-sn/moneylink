@@ -3,8 +3,11 @@
  */
 
 import crypto from 'crypto';
+import app from '../src/app.js';
 
-const BASE_URL = 'http://localhost:5000/api';
+let server;
+const TEST_PORT = 5006;
+const BASE_URL = `http://localhost:${TEST_PORT}/api`;
 
 async function request(path, options = {}) {
   const url = `${BASE_URL}${path}`;
@@ -23,9 +26,11 @@ async function request(path, options = {}) {
 }
 
 async function runPaymentPartnerTests() {
+  server = app.listen(TEST_PORT);
   console.log('\n================================================================');
   console.log('  💳 TEST DES CONNECTEURS WAVE & ORANGE MONEY + WEBHOOKS HMAC');
   console.log('================================================================\n');
+
 
   try {
     // 1. Connexion Client
@@ -99,6 +104,11 @@ async function runPaymentPartnerTests() {
     console.log('================================================================\n');
   } catch (err) {
     console.error('❌ Erreur lors du test de paiement :', err.message);
+    process.exitCode = 1;
+  } finally {
+    if (server) {
+      server.close();
+    }
   }
 }
 

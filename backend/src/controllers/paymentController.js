@@ -1,8 +1,9 @@
 /**
  * MoneyLink — PaymentController (Gestion des Paiements, Solde & Transactions)
+ * Prise en charge PostgreSQL avec fallback mémoire
  */
 
-import { memoryStore } from '../config/db.js';
+import { memoryStore, query, pool } from '../config/db.js';
 import { PaymentGateway } from '../services/paymentGateway.js';
 
 export class PaymentController {
@@ -14,7 +15,17 @@ export class PaymentController {
       const buyerId = req.user.id;
       const { order_id, payment_method = 'WAVE_MOCK', phone } = req.body;
 
-      const order = memoryStore.orders.find(o => o.id === order_id);
+      let order = null;
+      if (pool) {
+        try {
+          const ordRes = await query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order_id]);
+          if (ordRes?.rows?.length > 0) order = ordRes.rows[0];
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      if (!order) order = memoryStore.orders.find(o => o.id === order_id);
       if (!order) {
         return res.status(404).json({ success: false, error: 'Commande introuvable.' });
       }
@@ -72,7 +83,24 @@ export class PaymentController {
   static async getTransactions(req, res, next) {
     try {
       const userId = req.user.id;
-      const txns = memoryStore.transactions.filter(t => t.sender_id === userId || t.receiver_id === userId);
+      let txns = [];
+
+      if (pool) {
+        try {
+          const tRes = await query(`
+            SELECT * FROM transactions
+            WHERE sender_id = $1 OR receiver_id = $1
+            ORDER BY created_at DESC;
+          `, [userId]);
+          if (tRes?.rows) txns = tRes.rows;
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      if (txns.length === 0) {
+        txns = memoryStore.transactions.filter(t => t.sender_id === userId || t.receiver_id === userId);
+      }
 
       return res.status(200).json({
         success: true,
@@ -89,7 +117,20 @@ export class PaymentController {
   static async getWallet(req, res, next) {
     try {
       const userId = req.user.id;
-      const wallet = memoryStore.wallets.find(w => w.user_id === userId);
+      let wallet = null;
+
+      if (pool) {
+        try {
+          const wRes = await query('SELECT * FROM wallets WHERE user_id = $1 LIMIT 1', [userId]);
+          if (wRes?.rows?.length > 0) wallet = wRes.rows[0];
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      if (!wallet) {
+        wallet = memoryStore.wallets.find(w => w.user_id === userId);
+      }
 
       return res.status(200).json({
         success: true,

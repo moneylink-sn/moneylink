@@ -4,7 +4,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { memoryStore, query } from '../config/db.js';
+import { memoryStore, query, pool } from '../config/db.js';
 
 export class AnalyticsService {
   /**
@@ -50,12 +50,38 @@ export class AnalyticsService {
   /**
    * Calcule et retourne les statistiques complètes pour le tableau de bord administrateur
    */
-  static getAdminStatistics({ period = '30d' } = {}) {
+  static async getAdminStatistics({ period = '30d' } = {}) {
     const now = new Date();
-    const events = memoryStore.analytics_events || [];
-    const users = memoryStore.users || [];
-    const orders = memoryStore.orders || [];
-    const transactions = memoryStore.transactions || [];
+    let events = [];
+    let users = [];
+    let orders = [];
+    let transactions = [];
+
+    if (pool) {
+      try {
+        const [eRes, uRes, oRes, tRes] = await Promise.all([
+          query('SELECT * FROM analytics_events ORDER BY created_at ASC'),
+          query('SELECT * FROM users ORDER BY created_at ASC'),
+          query('SELECT * FROM orders ORDER BY created_at ASC'),
+          query('SELECT * FROM transactions ORDER BY created_at ASC')
+        ]);
+        if (uRes?.rows?.length > 0) {
+          events = eRes?.rows || [];
+          users = uRes?.rows || [];
+          orders = oRes?.rows || [];
+          transactions = tRes?.rows || [];
+        }
+      } catch (dbErr) {
+        if (process.env.NODE_ENV === 'production') throw dbErr;
+      }
+    }
+
+    if (users.length === 0) {
+      events = memoryStore.analytics_events || [];
+      users = memoryStore.users || [];
+      orders = memoryStore.orders || [];
+      transactions = memoryStore.transactions || [];
+    }
 
     // Détermination de la borne temporelle selon le filtre
     let startDate = new Date();

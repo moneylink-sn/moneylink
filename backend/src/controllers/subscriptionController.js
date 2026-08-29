@@ -1,10 +1,11 @@
 /**
  * MoneyLink — SubscriptionController
  * Moteur d'abonnement : 1er mois gratuit (30j), puis 500 FCFA/mois (Wave / Orange Money)
+ * Prise en charge PostgreSQL avec fallback mémoire
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { memoryStore } from '../config/db.js';
+import { memoryStore, query, pool } from '../config/db.js';
 
 export class SubscriptionController {
   /**
@@ -12,7 +13,25 @@ export class SubscriptionController {
    */
   static async getStatus(req, res, next) {
     try {
-      const user = memoryStore.users.find(u => u.id === req.user.id);
+      let user = null;
+
+      // 1. Recherche dans PostgreSQL si configuré
+      if (pool) {
+        try {
+          const userRes = await query('SELECT * FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
+          if (userRes && userRes.rows && userRes.rows.length > 0) {
+            user = userRes.rows[0];
+          }
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      // 2. Fallback memoryStore
+      if (!user) {
+        user = memoryStore.users.find(u => u.id === req.user.id);
+      }
+
       if (!user) {
         return res.status(404).json({ success: false, error: 'Utilisateur non trouvé.' });
       }
@@ -57,7 +76,25 @@ export class SubscriptionController {
   static async initiatePayment(req, res, next) {
     try {
       const { payment_method = 'WAVE', phone } = req.body;
-      const user = memoryStore.users.find(u => u.id === req.user.id);
+      let user = null;
+
+      // 1. Recherche dans PostgreSQL si configuré
+      if (pool) {
+        try {
+          const userRes = await query('SELECT * FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
+          if (userRes && userRes.rows && userRes.rows.length > 0) {
+            user = userRes.rows[0];
+          }
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      // 2. Fallback memoryStore
+      if (!user) {
+        user = memoryStore.users.find(u => u.id === req.user.id);
+      }
+
       if (!user) {
         return res.status(404).json({ success: false, error: 'Utilisateur non trouvé.' });
       }
@@ -116,7 +153,28 @@ export class SubscriptionController {
       const { status, role, search } = req.query;
       const now = new Date();
 
-      let subscribers = memoryStore.users.map(u => {
+      let allUsers = [];
+      let allWallets = [];
+
+      if (pool) {
+        try {
+          const usersRes = await query('SELECT * FROM users ORDER BY created_at DESC');
+          const walletsRes = await query('SELECT * FROM wallets');
+          if (usersRes && usersRes.rows && usersRes.rows.length > 0) {
+            allUsers = usersRes.rows;
+            allWallets = walletsRes?.rows || [];
+          }
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      if (allUsers.length === 0) {
+        allUsers = memoryStore.users;
+        allWallets = memoryStore.wallets;
+      }
+
+      let subscribers = allUsers.map(u => {
         const endDate = u.subscription_end_date ? new Date(u.subscription_end_date) : new Date(Date.now() + 30 * 24 * 3600 * 1000);
         const diffTime = endDate.getTime() - now.getTime();
         const daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
@@ -126,7 +184,7 @@ export class SubscriptionController {
           effectiveStatus = 'EXPIRED';
         }
 
-        const wallet = memoryStore.wallets.find(w => w.user_id === u.id);
+        const wallet = allWallets.find(w => w.user_id === u.id);
 
         return {
           id: u.id,

@@ -46,7 +46,7 @@ export class AnalyticsController {
   static async getAdminStatistics(req, res, next) {
     try {
       const { period = '30d' } = req.query;
-      const statistics = AnalyticsService.getAdminStatistics({ period });
+      const statistics = await AnalyticsService.getAdminStatistics({ period });
 
       return res.status(200).json({
         success: true,

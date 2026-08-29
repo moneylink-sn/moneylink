@@ -71,3 +71,36 @@ export const productSchema = z.object({
   image_url: z.string().url().optional(),
   category: z.string().optional()
 });
+
+export const topUpSchema = z.object({
+  amount: z.number().positive('Le montant de rechargement doit être supérieur à 0 FCFA'),
+  payment_method: z.string().optional(),
+  phone: z.string().optional()
+});
+
+export const validateDeliveryCodeSchema = z.object({
+  code: z.string().min(4, 'Code secret trop court').max(10, 'Code secret trop long')
+});
+
+export const disputeSchema = z.object({
+  reason: z.string().min(2, 'Le motif du litige est requis'),
+  description: z.string().optional(),
+  evidence_urls: z.array(z.string()).optional()
+});
+
+export const inviteMemberSchema = z.object({
+  phone: z.string().min(8, 'Numéro de téléphone requis (+221...)')
+});
+
+export const updateUserStatusSchema = z.object({
+  status: z.enum(['ACTIVE', 'SUSPENDED', 'PENDING'], {
+    errorMap: () => ({ message: 'Statut invalide (ACTIVE, SUSPENDED ou PENDING attendu)' })
+  })
+});
+
+export const resolveDisputeSchema = z.object({
+  resolution: z.enum(['REFUND_BUYER', 'RELEASE_MERCHANT'], {
+    errorMap: () => ({ message: 'Type de résolution invalide (REFUND_BUYER ou RELEASE_MERCHANT attendu)' })
+  }),
+  notes: z.string().optional()
+});
