@@ -551,6 +551,83 @@ export async function seedTablesIfEmpty(client) {
 }
 
 /**
+ * Assure la présence, le rôle ADMIN et le statut ACTIVE du compte administrateur racine
+ */
+export async function ensureAdminAccount(client) {
+  try {
+    const adminUser = initialSeedData.users.find(u => u.role === 'ADMIN') || initialSeedData.users[0];
+    if (!adminUser) return;
+
+    // 1. Recherche si l'administrateur existe déjà (par email, téléphone ou ID)
+    const existing = await client.query(
+      'SELECT id FROM users WHERE LOWER(email) = LOWER($1) OR phone = $2 OR id = $3 LIMIT 1',
+      [adminUser.email, adminUser.phone, adminUser.id]
+    );
+
+    if (existing && existing.rows && existing.rows.length > 0) {
+      const targetId = existing.rows[0].id;
+      await client.query(`
+        UPDATE users SET
+          phone = $1,
+          email = $2,
+          first_name = $3,
+          last_name = $4,
+          password_hash = $5,
+          role = 'ADMIN',
+          status = 'ACTIVE',
+          subscription_status = 'ACTIVE',
+          is_trial = false,
+          updated_at = NOW()
+        WHERE id = $6
+      `, [
+        adminUser.phone,
+        adminUser.email,
+        adminUser.first_name,
+        adminUser.last_name,
+        adminUser.password_hash,
+        targetId
+      ]);
+    } else {
+      await client.query(`
+        INSERT INTO users (
+          id, phone, email, first_name, last_name, password_hash, role, status,
+          avatar_url, subscription_status, subscription_start_date, subscription_end_date,
+          subscription_price, is_trial, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, 'ADMIN', 'ACTIVE', $7, 'ACTIVE', NOW(), NOW() + INTERVAL '365 days', 500.00, false, NOW(), NOW())
+      `, [
+        adminUser.id,
+        adminUser.phone,
+        adminUser.email,
+        adminUser.first_name,
+        adminUser.last_name,
+        adminUser.password_hash,
+        adminUser.avatar_url
+      ]);
+    }
+
+    // 2. Assurer le portefeuille de l'administrateur
+    const adminWallet = initialSeedData.wallets.find(w => w.user_id === adminUser.id);
+    if (adminWallet) {
+      await client.query(`
+        INSERT INTO wallets (id, user_id, available_balance, locked_balance, currency, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+        ON CONFLICT (user_id) DO UPDATE SET
+          available_balance = GREATEST(wallets.available_balance, EXCLUDED.available_balance),
+          updated_at = NOW()
+      `, [
+        adminWallet.id,
+        adminUser.id,
+        adminWallet.available_balance || 5000000.00,
+        adminWallet.locked_balance || 0.00,
+        adminWallet.currency || 'XOF'
+      ]);
+    }
+  } catch (err) {
+    console.warn('⚠️ Avertissement synchronisation compte administrateur :', err.message);
+  }
+}
+
+/**
  * Vérifie activement l'état et la disponibilité réelle de la connexion PostgreSQL
  */
 export async function checkDbHealth() {
@@ -563,6 +640,7 @@ export async function checkDbHealth() {
 
         await ensureCoreTables(client);
         await ensureAnalyticsEventsTable(client);
+        await ensureAdminAccount(client);
         await seedTablesIfEmpty(client);
 
         return {
@@ -698,6 +776,7 @@ export default {
   checkDbHealth,
   ensureCoreTables,
   ensureAnalyticsEventsTable,
+  ensureAdminAccount,
   seedTablesIfEmpty,
   memoryStore,
   pool

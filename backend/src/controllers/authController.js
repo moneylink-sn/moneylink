@@ -327,7 +327,7 @@ export class AuthController {
         });
       }
 
-      if (user.status !== 'ACTIVE') {
+      if (String(user.status || '').trim().toUpperCase() !== 'ACTIVE') {
         return res.status(403).json({
           success: false,
           error: 'Ce compte est actuellement suspendu ou en cours de vérification.'

@@ -1,7 +1,7 @@
 -- ============================================================================
 -- MONEYLINK — JEU DE DONNÉES DE TEST & DÉMONSTRATION (SEEDS)
 -- Mot de passe par défaut pour tous les comptes de test : Password123!
--- Hash Bcrypt : $2b$10$ep5zJ9k2W/j/eD9yH9E8oO8fO4lW1zD5D8Y.R4Z7.8oP2A4.W9Lq2
+-- Hash Bcrypt : $2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2
 -- ============================================================================
 
 -- Nettoyage des anciennes données
@@ -13,11 +13,11 @@ products, merchants, wallets, users RESTART IDENTITY CASCADE;
 -- 1. UTILISATEURS
 -- ----------------------------------------------------------------------------
 INSERT INTO users (id, phone, email, first_name, last_name, password_hash, role, status, avatar_url) VALUES
-('a0000000-0000-0000-0000-000000000001', '+221770000001', 'admin@moneylink.sn', 'Codé', 'Samb', '$2b$10$ep5zJ9k2W/j/eD9yH9E8oO8fO4lW1zD5D8Y.R4Z7.8oP2A4.W9Lq2', 'ADMIN', 'ACTIVE', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'),
-('b0000000-0000-0000-0000-000000000002', '+221770000002', 'amadou@diopsports.sn', 'Amadou', 'Diop', '$2b$10$ep5zJ9k2W/j/eD9yH9E8oO8fO4lW1zD5D8Y.R4Z7.8oP2A4.W9Lq2', 'MERCHANT', 'ACTIVE', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150'),
-('b0000000-0000-0000-0000-000000000003', '+221770000003', 'fatou@dakartech.sn', 'Fatou', 'Ndiaye', '$2b$10$ep5zJ9k2W/j/eD9yH9E8oO8fO4lW1zD5D8Y.R4Z7.8oP2A4.W9Lq2', 'MERCHANT', 'ACTIVE', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150'),
-('c0000000-0000-0000-0000-000000000004', '+221770000004', 'moussa@gmail.com', 'Moussa', 'Fall', '$2b$10$ep5zJ9k2W/j/eD9yH9E8oO8fO4lW1zD5D8Y.R4Z7.8oP2A4.W9Lq2', 'CLIENT', 'ACTIVE', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150'),
-('c0000000-0000-0000-0000-000000000005', '+221770000005', 'awa@gmail.com', 'Awa', 'Sow', '$2b$10$ep5zJ9k2W/j/eD9yH9E8oO8fO4lW1zD5D8Y.R4Z7.8oP2A4.W9Lq2', 'CLIENT', 'ACTIVE', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150');
+('a0000000-0000-0000-0000-000000000001', '+221770000001', 'admin@moneylink.sn', 'Codé', 'Samb', '$2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2', 'ADMIN', 'ACTIVE', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'),
+('b0000000-0000-0000-0000-000000000002', '+221770000002', 'amadou@diopsports.sn', 'Amadou', 'Diop', '$2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2', 'MERCHANT', 'ACTIVE', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150'),
+('b0000000-0000-0000-0000-000000000003', '+221770000003', 'fatou@dakartech.sn', 'Fatou', 'Ndiaye', '$2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2', 'MERCHANT', 'ACTIVE', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150'),
+('c0000000-0000-0000-0000-000000000004', '+221770000004', 'moussa@gmail.com', 'Moussa', 'Fall', '$2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2', 'CLIENT', 'ACTIVE', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150'),
+('c0000000-0000-0000-0000-000000000005', '+221770000005', 'awa@gmail.com', 'Awa', 'Sow', '$2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2', 'CLIENT', 'ACTIVE', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150');
 
 -- ----------------------------------------------------------------------------
 -- 2. PORTEFEUILLES (WALLETS)
@@ -52,13 +52,13 @@ INSERT INTO products (id, merchant_id, name, description, price, stock, image_ur
 -- ----------------------------------------------------------------------------
 INSERT INTO orders (id, order_number, buyer_id, merchant_id, total_amount, escrow_amount, service_fee, status, delivery_code_hash, delivery_address, delivery_phone, delivery_notes, paid_at, shipped_at, delivered_at, confirmed_at) VALUES
 -- Commande 1 : En attente de livraison avec Code OTP (ex code clair : 849201)
-('o0000000-0000-0000-0000-000000000001', 'ML-2026-001', 'c0000000-0000-0000-0000-000000000004', 'm0000000-0000-0000-0000-000000000001', 45000.00, 45000.00, 500.00, 'SHIPPED', '$2b$10$ep5zJ9k2W/j/eD9yH9E8oO8fO4lW1zD5D8Y.R4Z7.8oP2A4.W9Lq2', 'Almadies, Villa 45, Dakar', '+221770000004', 'Appeler dès l’arrivée à la porte', NOW() - INTERVAL '4 HOURS', NOW() - INTERVAL '1 HOUR', NULL, NULL),
+('o0000000-0000-0000-0000-000000000001', 'ML-2026-001', 'c0000000-0000-0000-0000-000000000004', 'm0000000-0000-0000-0000-000000000001', 45000.00, 45000.00, 500.00, 'SHIPPED', '$2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2', 'Almadies, Villa 45, Dakar', '+221770000004', 'Appeler dès l’arrivée à la porte', NOW() - INTERVAL '4 HOURS', NOW() - INTERVAL '1 HOUR', NULL, NULL),
 
 -- Commande 2 : Finalisée et confirmée (Fonds versés au vendeur)
-('o0000000-0000-0000-0000-000000000002', 'ML-2026-002', 'c0000000-0000-0000-0000-000000000005', 'm0000000-0000-0000-0000-000000000002', 32000.00, 32000.00, 400.00, 'CONFIRMED', '$2b$10$ep5zJ9k2W/j/eD9yH9E8oO8fO4lW1zD5D8Y.R4Z7.8oP2A4.W9Lq2', 'Liberté 6 Extension, Dakar', '+221770000005', 'Colis remis en main propre', NOW() - INTERVAL '2 DAYS', NOW() - INTERVAL '1 DAY', NOW() - INTERVAL '12 HOURS', NOW() - INTERVAL '12 HOURS'),
+('o0000000-0000-0000-0000-000000000002', 'ML-2026-002', 'c0000000-0000-0000-0000-000000000005', 'm0000000-0000-0000-0000-000000000002', 32000.00, 32000.00, 400.00, 'CONFIRMED', '$2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2', 'Liberté 6 Extension, Dakar', '+221770000005', 'Colis remis en main propre', NOW() - INTERVAL '2 DAYS', NOW() - INTERVAL '1 DAY', NOW() - INTERVAL '12 HOURS', NOW() - INTERVAL '12 HOURS'),
 
 -- Commande 3 : En litige (Produit défectueux / non conforme)
-('o0000000-0000-0000-0000-000000000003', 'ML-2026-003', 'c0000000-0000-0000-0000-000000000004', 'm0000000-0000-0000-0000-000000000002', 18000.00, 18000.00, 200.00, 'DISPUTED', '$2b$10$ep5zJ9k2W/j/eD9yH9E8oO8fO4lW1zD5D8Y.R4Z7.8oP2A4.W9Lq2', 'Point E, Immeuble Horizon', '+221770000004', 'Écouteurs ne s’allument pas', NOW() - INTERVAL '1 DAY', NOW() - INTERVAL '8 HOURS', NOW() - INTERVAL '4 HOURS', NULL);
+('o0000000-0000-0000-0000-000000000003', 'ML-2026-003', 'c0000000-0000-0000-0000-000000000004', 'm0000000-0000-0000-0000-000000000002', 18000.00, 18000.00, 200.00, 'DISPUTED', '$2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2', 'Point E, Immeuble Horizon', '+221770000004', 'Écouteurs ne s’allument pas', NOW() - INTERVAL '1 DAY', NOW() - INTERVAL '8 HOURS', NOW() - INTERVAL '4 HOURS', NULL);
 
 -- ----------------------------------------------------------------------------
 -- 6. LIGNES DE COMMANDES (ORDER ITEMS)

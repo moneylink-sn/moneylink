@@ -50,7 +50,7 @@ export async function authenticateJWT(req, res, next) {
     if (pool) {
       try {
         const userRes = await query(
-          'SELECT id, phone, email, first_name, last_name, role, status FROM users WHERE id = $1 AND status = $2 LIMIT 1',
+          'SELECT id, phone, email, first_name, last_name, role, status FROM users WHERE id = $1 AND UPPER(TRIM(status)) = $2 LIMIT 1',
           [decoded.id, 'ACTIVE']
         );
         if (userRes && userRes.rows && userRes.rows.length > 0) {
@@ -63,7 +63,7 @@ export async function authenticateJWT(req, res, next) {
 
     // 2. Fallback memoryStore si non trouvé en base (mode dev / tests)
     if (!user) {
-      user = memoryStore.users.find(u => u.id === decoded.id && u.status === 'ACTIVE');
+      user = memoryStore.users.find(u => u.id === decoded.id && String(u.status || '').trim().toUpperCase() === 'ACTIVE');
     }
 
     if (!user) {
