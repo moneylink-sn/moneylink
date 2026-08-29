@@ -1,0 +1,49 @@
+# ==============================================================================
+# MONEYLINK — BLUEPRINT RENDER (render.yaml)
+# Configuration des services existants : Backend API + Frontend Admin
+# (Base PostgreSQL existante : moneylink — Aucune nouvelle base créée)
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. API Backend Core (Web Service Node.js / Express)
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: moneylink-kd6v
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: ESCROW_FEE_PERCENT
+        value: 1.0
+      - key: CORS_ORIGIN
+        value: https://moneylink-1.onrender.com,https://moneylink.sn,https://www.moneylink.sn,https://admin.moneylink.sn
+
+  # ----------------------------------------------------------------------------
+  # 2. Dashboard Admin (Static Site React / Vite)
+  # ----------------------------------------------------------------------------
+  - type: static
+    name: moneylink-1
+    rootDir: admin
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://moneylink-kd6v.onrender.com/api

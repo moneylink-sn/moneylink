@@ -4,6 +4,7 @@
 
 import dotenv from 'dotenv';
 import app from './app.js';
+import { checkDbHealth } from './config/db.js';
 
 dotenv.config();
 
@@ -21,7 +22,7 @@ if (process.env.NODE_ENV === 'production') {
 
 const PORT = process.env.PORT || 5000;
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   console.log('\n===============================================================');
   console.log('  🚀 MONEYLINK FINTECH API CORE DÉMARRÉE SUR LE PORT ' + PORT);
   console.log('===============================================================');
@@ -31,6 +32,20 @@ const server = app.listen(PORT, () => {
   console.log(`  💳 Payments API : http://localhost:${PORT}/api/payments`);
   console.log(`  💰 Savings API  : http://localhost:${PORT}/api/savings`);
   console.log(`  🛡️ Admin API    : http://localhost:${PORT}/api/admin`);
+
+  // Diagnostic de la base de données (Lecture seule)
+  try {
+    const dbHealth = await checkDbHealth();
+    if (dbHealth.connected) {
+      console.log(`  🐘 Base de Données: CONNECTÉE (PostgreSQL / ${dbHealth.database})`);
+    } else if (process.env.NODE_ENV === 'production') {
+      console.error(`  🚨 ERREUR CRITIQUE: Base de données inaccessible en production: ${dbHealth.error || dbHealth.message}`);
+    } else {
+      console.log(`  💾 Stockage Données: Mode Démonstration / Mémoire Actif (${dbHealth.message || 'local'})`);
+    }
+  } catch (err) {
+    console.error('  ⚠️ Erreur lors du diagnostic initial DB:', err.message);
+  }
   console.log('===============================================================\n');
 });
 

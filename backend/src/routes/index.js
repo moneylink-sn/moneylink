@@ -3,6 +3,7 @@
  */
 
 import { Router } from 'express';
+import { checkDbHealth } from '../config/db.js';
 import authRoutes from './authRoutes.js';
 import merchantRoutes from './merchantRoutes.js';
 import orderRoutes from './orderRoutes.js';
@@ -17,14 +18,18 @@ import analyticsRoutes from './analyticsRoutes.js';
 const router = Router();
 
 // Health check endpoint
-router.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'UP',
+router.get('/health', async (req, res) => {
+  const dbHealth = await checkDbHealth();
+  const isHealthy = process.env.NODE_ENV === 'production' ? dbHealth.connected : true;
+
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? 'UP' : 'DEGRADED',
     service: 'MoneyLink Fintech Core API',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
     market: 'Sénégal (UEMOA)',
-    currency: 'XOF / FCFA'
+    currency: 'XOF / FCFA',
+    database: dbHealth
   });
 });
 
