@@ -20,7 +20,13 @@ export function AuthProvider({ children }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier, password }),
       });
-      const data = await res.json();
+
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        throw new Error(`Réponse inattendue du serveur API (HTTP ${res.status}).`);
+      }
 
       if (data.success && data.data) {
         if (data.data.user.role !== 'ADMIN') {
@@ -39,7 +45,11 @@ export function AuthProvider({ children }) {
       }
     } catch (err) {
       setLoading(false);
-      return { success: false, error: err.message };
+      let message = err.message;
+      if (message === 'Failed to fetch' || message.includes('fetch')) {
+        message = `Impossible de contacter le serveur API (${API_BASE}). Vérifiez l'état du backend ou votre connexion réseau.`;
+      }
+      return { success: false, error: message };
     }
   };
 

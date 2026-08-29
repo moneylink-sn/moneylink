@@ -8,6 +8,8 @@ export default defineConfig({
     open: false
   },
   preview: {
-    allowedHosts: ['moneylink-1.onrender.com']
+    host: '0.0.0.0',
+    port: 3000,
+    allowedHosts: ['moneylink-1.onrender.com', '.onrender.com', 'admin.moneylink.sn']
   }
 });

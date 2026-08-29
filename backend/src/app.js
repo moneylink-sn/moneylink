@@ -17,42 +17,61 @@ app.use(helmet());
 
 // Cross-Origin Resource Sharing (CORS)
 const isProduction = process.env.NODE_ENV === 'production';
-const defaultProdOrigins = [
+const defaultAllowedOrigins = [
+  'https://moneylink-1.onrender.com',
+  'https://moneylink-kd6v.onrender.com',
   'https://moneylink.sn',
   'https://www.moneylink.sn',
-  'https://admin.moneylink.sn'
+  'https://admin.moneylink.sn',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://localhost:5000',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5000'
 ];
 
-const allowedOrigins = process.env.CORS_ORIGIN
+const envAllowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()).filter(Boolean)
-  : (isProduction ? defaultProdOrigins : ['*']);
+  : [];
+
+const allowedOrigins = [...new Set([...defaultAllowedOrigins, ...envAllowedOrigins])];
+
+const isOriginAllowed = (origin) => {
+  // Autoriser les requêtes sans origine (applications mobiles natives, curl, health check, Postman)
+  if (!origin) {
+    return true;
+  }
+
+  // Origines explicites ou wildcard global
+  if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+    return true;
+  }
+
+  // Autoriser tous les sous-domaines Render de MoneyLink (*.onrender.com)
+  if (/^https:\/\/[a-zA-Z0-9-]+\.onrender\.com$/.test(origin)) {
+    return true;
+  }
+
+  // Autoriser tous les sous-domaines moneylink.sn
+  if (/^https:\/\/([a-zA-Z0-9-]+\.)?moneylink\.sn$/.test(origin)) {
+    return true;
+  }
+
+  return false;
+};
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Autoriser les requêtes sans origine (applications mobiles natives, curl, health check, Postman)
-    if (!origin) {
+    if (isOriginAllowed(origin)) {
       return callback(null, true);
     }
-
-    // En production, interdire formellement le wildcard '*'
-    if (isProduction) {
-      const isAllowedProd = allowedOrigins.includes(origin) || defaultProdOrigins.includes(origin);
-      if (isAllowedProd) {
-        return callback(null, true);
-      }
-      return callback(new Error(`Origine [${origin}] non autorisée par la politique CORS de production MoneyLink.`));
-    }
-
-    // En développement ou test, autoriser wildcard ou origine listée
-    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    return callback(new Error('Origine non autorisée par la politique CORS MoneyLink.'));
+    return callback(null, false);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'wave-signature', 'x-om-signature', 'X-Requested-With'],
-  credentials: true
+  allowedHeaders: ['Content-Type', 'Authorization', 'wave-signature', 'x-om-signature', 'X-Requested-With', 'Accept', 'Origin'],
+  credentials: true,
+  optionsSuccessStatus: 200
 }));
 
 // Rate Limiting : 300 requêtes par 15 minutes par IP
