@@ -61,6 +61,10 @@ export async function checkDbHealth() {
     try {
       const res = await client.query('SELECT NOW() as server_time, current_database() as database');
       isPostgresConnected = true;
+
+      // Vérification et création sécurisée / non-destructive de analytics_events si manquante
+      await ensureAnalyticsEventsTable(client);
+
       return {
         connected: true,
         mode: 'POSTGRESQL',
@@ -79,6 +83,37 @@ export async function checkDbHealth() {
     };
   }
 }
+
+/**
+ * Assure la présence non-destructive de la table analytics_events et de ses index
+ */
+async function ensureAnalyticsEventsTable(client) {
+  try {
+    await client.query(`
+      CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+      CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+      CREATE TABLE IF NOT EXISTS analytics_events (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          event_type VARCHAR(50) NOT NULL,
+          user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+          session_id VARCHAR(100),
+          platform VARCHAR(30) NOT NULL DEFAULT 'WEB_LANDING',
+          metadata JSONB DEFAULT '{}'::jsonb,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_analytics_events_type ON analytics_events(event_type);
+      CREATE INDEX IF NOT EXISTS idx_analytics_events_user_id ON analytics_events(user_id);
+      CREATE INDEX IF NOT EXISTS idx_analytics_events_session_id ON analytics_events(session_id);
+      CREATE INDEX IF NOT EXISTS idx_analytics_events_platform ON analytics_events(platform);
+      CREATE INDEX IF NOT EXISTS idx_analytics_events_created_at ON analytics_events(created_at DESC);
+    `);
+  } catch (err) {
+    console.warn('⚠️ Avertissement initialisation non-destructive analytics_events :', err.message);
+  }
+}
+
 
 /**
  * Exécute une requête SQL sur PostgreSQL si configuré, ou interagit avec le store de test

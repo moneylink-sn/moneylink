@@ -8,7 +8,9 @@ Ce dossier contient les schémas relationnels, les index de performance, les tri
 database/
 ├── schema.sql              # Schéma complet PostgreSQL (UUID, Contraintes, Clés étrangères, Triggers)
 ├── sqlite_schema.sql       # Schéma équivalent SQLite (Option développement local léger)
-├── init.js                 # Script d'assistance d'initialisation
+├── init.js                 # Script d'assistance d'initialisation & migrations non-destructives
+├── migrations/             # Migrations incrémentales sécurisées (CREATE IF NOT EXISTS)
+│   └── 001_create_analytics_events.sql
 └── seeds/
     ├── seed.sql            # Données de test PostgreSQL (Utilisateurs, Marchands, Commandes, Coffres)
     └── sqlite_seed.sql     # Données de test SQLite
@@ -34,10 +36,13 @@ Tous les comptes de démonstration utilisent le mot de passe : `Password123!`
 # 1. Créer la base de données (si pas encore créée)
 createdb -U postgres moneylink_db
 
-# 2. Exécuter le schéma
+# 2. Exécuter le schéma complet
 psql -U postgres -d moneylink_db -f database/schema.sql
 
-# 3. Charger les données de test (seeds)
+# 3. Ou appliquer les migrations incrémentales non destructives
+npm run db:migrate
+
+# 4. Charger les données de test (seeds)
 psql -U postgres -d moneylink_db -f database/seeds/seed.sql
 ```
 

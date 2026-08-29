@@ -2,6 +2,7 @@
   "name": "moneylink",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "MoneyLink Fintech Platform — Séquestre (Escrow), Paiements & Épargne au Sénégal",
   "workspaces": [
     "admin",
@@ -13,6 +14,7 @@
     "start:backend": "npm run start --workspace=backend",
     "test:backend": "npm run test --workspace=backend",
     "db:init": "node database/init.js",
+    "db:migrate": "node database/init.js",
     "db:seed": "node database/init.js --seed"
   },
   "author": "MoneyLink Senior Engineering Team",

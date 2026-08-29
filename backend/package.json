@@ -9,6 +9,7 @@
     "dev": "node --watch src/server.js",
     "test": "node tests/statistics_test.js && node tests/api_test.js",
     "db:init": "node ../database/init.js",
+    "db:migrate": "node ../database/init.js",
     "db:seed": "node ../database/init.js --seed"
   },
   "keywords": [

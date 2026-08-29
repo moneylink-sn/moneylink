@@ -415,7 +415,7 @@ CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at DESC);
 -- ----------------------------------------------------------------------------
 -- 17. TABLE : ANALYTICS_EVENTS (Collecte & Statistiques d'Utilisation / Visiteurs)
 -- ----------------------------------------------------------------------------
-CREATE TABLE analytics_events (
+CREATE TABLE IF NOT EXISTS analytics_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_type VARCHAR(50) NOT NULL, -- 'PAGE_VIEW', 'APP_OPEN', 'REGISTER', 'LOGIN', 'PAYMENT_SUCCESS', 'SUBSCRIPTION_ACTIVATED'
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -425,11 +425,11 @@ CREATE TABLE analytics_events (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_analytics_events_type ON analytics_events(event_type);
-CREATE INDEX idx_analytics_events_user_id ON analytics_events(user_id);
-CREATE INDEX idx_analytics_events_session_id ON analytics_events(session_id);
-CREATE INDEX idx_analytics_events_platform ON analytics_events(platform);
-CREATE INDEX idx_analytics_events_created_at ON analytics_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_type ON analytics_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_user_id ON analytics_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_session_id ON analytics_events(session_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_platform ON analytics_events(platform);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_created_at ON analytics_events(created_at DESC);
 
 -- ----------------------------------------------------------------------------
 -- 18. FONCTIONS & TRIGGERS POUR LA GESTION AUTOMATIQUE DE updated_at
