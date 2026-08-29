@@ -103,8 +103,6 @@ export class AdminController {
    */
   static async listUsers(req, res, next) {
     try {
-      let users = [];
-
       if (pool) {
         try {
           const uRes = await query(`
@@ -119,32 +117,32 @@ export class AdminController {
             LEFT JOIN merchants m ON u.id = m.user_id
             ORDER BY u.created_at DESC;
           `);
-          if (uRes?.rows) users = uRes.rows;
+          if (uRes?.rows) {
+            return res.status(200).json({ success: true, data: uRes.rows });
+          }
         } catch (dbErr) {
           if (process.env.NODE_ENV === 'production') throw dbErr;
         }
       }
 
-      if (users.length === 0) {
-        users = memoryStore.users.map(u => {
-          const wallet = memoryStore.wallets.find(w => w.user_id === u.id);
-          const merchant = memoryStore.merchants.find(m => m.user_id === u.id);
-          return {
-            id: u.id,
-            first_name: u.first_name,
-            last_name: u.last_name,
-            phone: u.phone,
-            email: u.email,
-            role: u.role,
-            status: u.status,
-            avatar_url: u.avatar_url,
-            available_balance: wallet?.available_balance || 0,
-            locked_balance: wallet?.locked_balance || 0,
-            merchant_name: merchant?.business_name,
-            created_at: u.created_at
-          };
-        });
-      }
+      const users = memoryStore.users.map(u => {
+        const wallet = memoryStore.wallets.find(w => w.user_id === u.id);
+        const merchant = memoryStore.merchants.find(m => m.user_id === u.id);
+        return {
+          id: u.id,
+          first_name: u.first_name,
+          last_name: u.last_name,
+          phone: u.phone,
+          email: u.email,
+          role: u.role,
+          status: u.status,
+          avatar_url: u.avatar_url,
+          available_balance: wallet?.available_balance || 0,
+          locked_balance: wallet?.locked_balance || 0,
+          merchant_name: merchant?.business_name,
+          created_at: u.created_at
+        };
+      });
 
       return res.status(200).json({ success: true, data: users });
     } catch (err) {
@@ -203,8 +201,6 @@ export class AdminController {
    */
   static async listDisputes(req, res, next) {
     try {
-      let disputes = [];
-
       if (pool) {
         try {
           const dRes = await query(`
@@ -219,25 +215,25 @@ export class AdminController {
             LEFT JOIN merchants m ON o.merchant_id = m.id
             ORDER BY d.created_at DESC;
           `);
-          if (dRes?.rows) disputes = dRes.rows;
+          if (dRes?.rows) {
+            return res.status(200).json({ success: true, data: dRes.rows });
+          }
         } catch (dbErr) {
           if (process.env.NODE_ENV === 'production') throw dbErr;
         }
       }
 
-      if (disputes.length === 0) {
-        disputes = memoryStore.disputes.map(d => {
-          const order = memoryStore.orders.find(o => o.id === d.order_id);
-          const buyer = memoryStore.users.find(u => u.id === d.opened_by);
-          const merchant = order ? memoryStore.merchants.find(m => m.id === order.merchant_id) : null;
-          return {
-            ...d,
-            order,
-            buyer_name: buyer ? `${buyer.first_name} ${buyer.last_name}` : 'Client',
-            merchant_name: merchant?.business_name || 'Commerçant'
-          };
-        });
-      }
+      const disputes = memoryStore.disputes.map(d => {
+        const order = memoryStore.orders.find(o => o.id === d.order_id);
+        const buyer = memoryStore.users.find(u => u.id === d.opened_by);
+        const merchant = order ? memoryStore.merchants.find(m => m.id === order.merchant_id) : null;
+        return {
+          ...d,
+          order,
+          buyer_name: buyer ? `${buyer.first_name} ${buyer.last_name}` : 'Client',
+          merchant_name: merchant?.business_name || 'Commerçant'
+        };
+      });
 
       return res.status(200).json({ success: true, data: disputes });
     } catch (err) {

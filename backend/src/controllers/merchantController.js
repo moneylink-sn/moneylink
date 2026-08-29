@@ -12,20 +12,21 @@ export class MerchantController {
    */
   static async listMerchants(req, res, next) {
     try {
-      let merchants = [];
-
       if (pool) {
         try {
           const mRes = await query('SELECT * FROM merchants WHERE status = \'ACTIVE\' ORDER BY created_at DESC');
-          if (mRes?.rows) merchants = mRes.rows;
+          if (mRes?.rows) {
+            return res.status(200).json({
+              success: true,
+              data: mRes.rows
+            });
+          }
         } catch (dbErr) {
           if (process.env.NODE_ENV === 'production') throw dbErr;
         }
       }
 
-      if (merchants.length === 0) {
-        merchants = memoryStore.merchants.filter(m => m.status === 'ACTIVE');
-      }
+      const merchants = memoryStore.merchants.filter(m => m.status === 'ACTIVE');
 
       return res.status(200).json({
         success: true,
@@ -42,35 +43,40 @@ export class MerchantController {
   static async getMerchantDetails(req, res, next) {
     try {
       const { id } = req.params;
-      let merchant = null;
-      let products = [];
 
       if (pool) {
         try {
           const mRes = await query('SELECT * FROM merchants WHERE id = $1 OR user_id = $1 LIMIT 1', [id]);
           if (mRes?.rows?.length > 0) {
-            merchant = mRes.rows[0];
+            const merchant = mRes.rows[0];
             const pRes = await query('SELECT * FROM products WHERE merchant_id = $1 AND is_active = true ORDER BY created_at DESC', [merchant.id]);
-            products = pRes?.rows || [];
+            return res.status(200).json({
+              success: true,
+              data: {
+                merchant,
+                products: pRes?.rows || []
+              }
+            });
+          } else {
+            return res.status(404).json({
+              success: false,
+              error: 'Commerçant introuvable.'
+            });
           }
         } catch (dbErr) {
           if (process.env.NODE_ENV === 'production') throw dbErr;
         }
       }
 
-      if (!merchant) {
-        merchant = memoryStore.merchants.find(m => m.id === id || m.user_id === id);
-        if (merchant) {
-          products = memoryStore.products.filter(p => p.merchant_id === merchant.id && p.is_active);
-        }
-      }
-
+      let merchant = memoryStore.merchants.find(m => m.id === id || m.user_id === id);
       if (!merchant) {
         return res.status(404).json({
           success: false,
           error: 'Commerçant introuvable.'
         });
       }
+
+      const products = memoryStore.products.filter(p => p.merchant_id === merchant.id && p.is_active);
 
       return res.status(200).json({
         success: true,
@@ -91,7 +97,6 @@ export class MerchantController {
   static async listAllProducts(req, res, next) {
     try {
       const { search, category, merchant_id } = req.query;
-      let products = [];
 
       if (pool) {
         try {
@@ -126,38 +131,42 @@ export class MerchantController {
           sql += ' ORDER BY p.created_at DESC';
 
           const resDb = await query(sql, params);
-          if (resDb?.rows) products = resDb.rows;
+          if (resDb?.rows) {
+            return res.status(200).json({
+              success: true,
+              count: resDb.rows.length,
+              data: resDb.rows
+            });
+          }
         } catch (dbErr) {
           if (process.env.NODE_ENV === 'production') throw dbErr;
         }
       }
 
-      if (products.length === 0) {
-        let memProds = memoryStore.products.filter(p => p.is_active);
+      let memProds = memoryStore.products.filter(p => p.is_active);
 
-        if (merchant_id) {
-          memProds = memProds.filter(p => p.merchant_id === merchant_id);
-        }
-        if (category && category !== 'all' && category !== 'Tous') {
-          memProds = memProds.filter(p => p.category && p.category.toLowerCase() === category.toLowerCase());
-        }
-        if (search) {
-          const q = search.toLowerCase();
-          memProds = memProds.filter(p => p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q)));
-        }
-
-        products = memProds.map(p => {
-          const m = memoryStore.merchants.find(merchant => merchant.id === p.merchant_id);
-          return {
-            ...p,
-            merchant_name: m?.business_name || 'Commerçant MoneyLink',
-            merchant_city: m?.city || 'Dakar',
-            merchant_phone: m?.phone || '',
-            merchant_logo: m?.logo_url || '',
-            merchant_is_verified: m?.is_verified ?? false
-          };
-        });
+      if (merchant_id) {
+        memProds = memProds.filter(p => p.merchant_id === merchant_id);
       }
+      if (category && category !== 'all' && category !== 'Tous') {
+        memProds = memProds.filter(p => p.category && p.category.toLowerCase() === category.toLowerCase());
+      }
+      if (search) {
+        const q = search.toLowerCase();
+        memProds = memProds.filter(p => p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q)));
+      }
+
+      const products = memProds.map(p => {
+        const m = memoryStore.merchants.find(merchant => merchant.id === p.merchant_id);
+        return {
+          ...p,
+          merchant_name: m?.business_name || 'Commerçant MoneyLink',
+          merchant_city: m?.city || 'Dakar',
+          merchant_phone: m?.phone || '',
+          merchant_logo: m?.logo_url || '',
+          merchant_is_verified: m?.is_verified ?? false
+        };
+      });
 
       return res.status(200).json({
         success: true,
@@ -178,15 +187,26 @@ export class MerchantController {
       if (pool) {
         try {
           const mRes = await query('SELECT * FROM merchants WHERE user_id = $1 LIMIT 1', [req.user.id]);
-          if (mRes?.rows?.length > 0) merchant = mRes.rows[0];
+          if (mRes?.rows?.length > 0) {
+            merchant = mRes.rows[0];
+            const pRes = await query('SELECT * FROM products WHERE merchant_id = $1 ORDER BY created_at DESC', [merchant.id]);
+            return res.status(200).json({
+              success: true,
+              merchant,
+              data: pRes?.rows || []
+            });
+          } else {
+            return res.status(403).json({
+              success: false,
+              error: 'Profil commerçant introuvable.'
+            });
+          }
         } catch (dbErr) {
           if (process.env.NODE_ENV === 'production') throw dbErr;
         }
       }
-      if (!merchant) {
-        merchant = memoryStore.merchants.find(m => m.user_id === req.user.id);
-      }
 
+      merchant = memoryStore.merchants.find(m => m.user_id === req.user.id);
       if (!merchant) {
         return res.status(403).json({
           success: false,
@@ -194,19 +214,7 @@ export class MerchantController {
         });
       }
 
-      let products = [];
-      if (pool) {
-        try {
-          const pRes = await query('SELECT * FROM products WHERE merchant_id = $1 ORDER BY created_at DESC', [merchant.id]);
-          if (pRes?.rows) products = pRes.rows;
-        } catch (dbErr) {
-          if (process.env.NODE_ENV === 'production') throw dbErr;
-        }
-      }
-
-      if (products.length === 0) {
-        products = memoryStore.products.filter(p => p.merchant_id === merchant.id);
-      }
+      const products = memoryStore.products.filter(p => p.merchant_id === merchant.id);
 
       return res.status(200).json({
         success: true,

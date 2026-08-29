@@ -186,39 +186,40 @@ export class OrderController {
           const resDb = await query(sql, params);
           if (resDb?.rows) {
             orders = resDb.rows;
-            // Récupération des items pour chaque commande
             for (const ord of orders) {
               const itemsRes = await query('SELECT * FROM order_items WHERE order_id = $1', [ord.id]);
               ord.items = itemsRes?.rows || [];
             }
+            return res.status(200).json({
+              success: true,
+              data: orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            });
           }
         } catch (dbErr) {
           if (process.env.NODE_ENV === 'production') throw dbErr;
         }
       }
 
-      // Fallback memoryStore si non trouvé en base
-      if (orders.length === 0) {
-        let memOrders = [];
-        if (userRole === 'MERCHANT') {
-          const merchant = memoryStore.merchants.find(m => m.user_id === userId);
-          if (merchant) {
-            memOrders = memoryStore.orders.filter(o => o.merchant_id === merchant.id);
-          }
-        } else {
-          memOrders = memoryStore.orders.filter(o => o.buyer_id === userId);
+      // Mode mémoire (tests ou dev autonome)
+      let memOrders = [];
+      if (userRole === 'MERCHANT') {
+        const merchant = memoryStore.merchants.find(m => m.user_id === userId);
+        if (merchant) {
+          memOrders = memoryStore.orders.filter(o => o.merchant_id === merchant.id);
         }
-
-        orders = memOrders.map(order => {
-          const merchant = memoryStore.merchants.find(m => m.id === order.merchant_id);
-          const buyer = memoryStore.users.find(u => u.id === order.buyer_id);
-          return {
-            ...order,
-            merchant_name: merchant?.business_name || 'Commerçant',
-            buyer_name: buyer ? `${buyer.first_name} ${buyer.last_name}` : 'Client'
-          };
-        });
+      } else {
+        memOrders = memoryStore.orders.filter(o => o.buyer_id === userId);
       }
+
+      orders = memOrders.map(order => {
+        const merchant = memoryStore.merchants.find(m => m.id === order.merchant_id);
+        const buyer = memoryStore.users.find(u => u.id === order.buyer_id);
+        return {
+          ...order,
+          merchant_name: merchant?.business_name || 'Commerçant',
+          buyer_name: buyer ? `${buyer.first_name} ${buyer.last_name}` : 'Client'
+        };
+      });
 
       return res.status(200).json({
         success: true,

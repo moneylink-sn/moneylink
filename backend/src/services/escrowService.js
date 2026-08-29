@@ -285,6 +285,10 @@ export class EscrowService {
       throw new Error('Cette commande a déjà été confirmée.');
     }
 
+    if (order.status === 'DISPUTED') {
+      throw new Error('Cette commande est sous litige. Un arbitrage administrateur est nécessaire.');
+    }
+
     return await this._executeEscrowRelease(order, 'BUYER_CONFIRMATION');
   }
 
