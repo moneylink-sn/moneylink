@@ -68,8 +68,22 @@ export const productSchema = z.object({
   description: z.string().optional(),
   price: z.number().nonnegative('Le prix doit être positif'),
   stock: z.number().int().nonnegative().default(0),
-  image_url: z.string().url().optional(),
+  image_url: z.string().optional(),
   category: z.string().optional()
+});
+
+export const updateProductSchema = z.object({
+  name: z.string().min(2, 'Le nom du produit est requis').optional(),
+  description: z.string().optional(),
+  price: z.number().nonnegative('Le prix doit être positif').optional(),
+  stock: z.number().int().nonnegative().optional(),
+  image_url: z.string().optional(),
+  category: z.string().optional(),
+  is_active: z.boolean().optional()
+});
+
+export const updateStockSchema = z.object({
+  stock: z.number().int().nonnegative('La quantité de stock doit être supérieure ou égale à 0')
 });
 
 export const topUpSchema = z.object({

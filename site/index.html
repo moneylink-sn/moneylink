@@ -9,8 +9,8 @@
   <!-- Primary Meta Tags -->
   <title>MoneyLink — Tiers de Confiance, Paiement Sécurisé & Séquestre au Sénégal</title>
   <meta name="title" content="MoneyLink — Tiers de Confiance, Paiement Sécurisé & Séquestre au Sénégal" />
-  <meta name="description" content="MoneyLink est la plateforme FinTech de référence au Sénégal pour le paiement sécurisé en ligne, le séquestre (escrow) Wave et Orange Money, la protection acheteur/vendeur et l'épargne tontine." />
-  <meta name="keywords" content="MoneyLink, paiement sécurisé Sénégal, séquestre Sénégal, escrow Wave Orange Money, fintech Dakar, commerce sécurisé Dakar, tontine épargne Sénégal, Moneylink.sn" />
+  <meta name="description" content="MoneyLink est la plateforme FinTech de référence au Sénégal pour le paiement sécurisé en ligne, le séquestre (escrow) Wave et Orange Money, la marketplace sécurisée et l'épargne tontine." />
+  <meta name="keywords" content="MoneyLink, paiement sécurisé Sénégal, séquestre Sénégal, escrow Wave Orange Money, marketplace Dakar, commerce sécurisé Dakar, tontine épargne Sénégal, Moneylink.sn" />
   <meta name="author" content="Codé SAMB — MoneyLink FinTech" />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://moneylink.sn" />
@@ -34,7 +34,7 @@
   <!-- Google Fonts (Inter & Outfit) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="styles.css" />
 
@@ -73,19 +73,31 @@
         <img src="assets/moneylink_logo.svg" alt="MoneyLink Logo" />
       </a>
       <ul class="nav-links">
+        <li><a href="#catalogue">🛍️ Catalogue</a></li>
         <li><a href="#sequestre">Séquestre Escrow</a></li>
         <li><a href="#comment-ca-marche">Comment ça marche</a></li>
         <li><a href="#tarifs">Tarifs (500 F)</a></li>
-        <li><a href="#mobile">App Mobile</a></li>
         <li><a href="#securite">Sécurité</a></li>
         <li><a href="#faq">FAQ</a></li>
       </ul>
-      <div class="nav-actions">
-        <a href="https://moneylink-1.onrender.com" class="btn btn-outline btn-sm" target="_blank" rel="noopener">
-          Espace Pro / Admin
-        </a>
-        <a href="#mobile" class="btn btn-primary btn-sm">
-          Télécharger l'App
+      <div class="nav-actions" style="display: flex; align-items: center; gap: 12px;">
+        <!-- Bouton Panier -->
+        <button id="open-cart-btn" class="cart-nav-btn" title="Voir mon panier">
+          <span>🛒</span>
+          <span>Panier</span>
+          <span id="cart-badge-count" class="cart-badge-count">0</span>
+        </button>
+
+        <!-- Espace Auth / Profil Dynamique -->
+        <div id="nav-auth-container">
+          <button id="nav-login-btn" class="btn btn-primary btn-sm">
+            Connexion / Compte
+          </button>
+        </div>
+
+        <!-- Lien Dashboard Admin -->
+        <a href="https://moneylink-1.onrender.com" class="btn btn-outline btn-sm" target="_blank" rel="noopener" title="Dashboard Administrateur MoneyLink">
+          Admin ⚙️
         </a>
       </div>
     </div>
@@ -107,12 +119,12 @@
           MoneyLink bloque l'argent de l'acheteur en lieu sûr (séquestre) jusqu'à ce que le colis soit livré et validé par un <strong>code secret unique</strong>. Fini les arnaques et les impayés !
         </p>
         <div class="hero-cta-group">
-          <a href="#mobile" class="btn btn-primary">
-            🚀 Découvrir l'Application
+          <a href="#catalogue" class="btn btn-primary">
+            🛍️ Explorer le Catalogue Public
           </a>
-          <a href="#comment-ca-marche" class="btn btn-outline">
-            🔍 Comment fonctionne le séquestre ?
-          </a>
+          <button id="hero-merchant-cta" class="btn btn-outline">
+            🏪 Espace Marchand / Vendre
+          </button>
         </div>
         <div class="hero-guarantees">
           <div class="guarantee-item">
@@ -173,6 +185,133 @@
   </header>
 
   <!-- ========================================================================
+       SECTION PORTAIL UTILISATEUR DÉDIÉ (CLIENT OU MARCHAND CONNECTÉ)
+       ======================================================================== -->
+  <section id="user-portal-section" class="user-portal-section" style="display: none;">
+    <div class="container">
+      <!-- VUE ESPACE CLIENT -->
+      <div id="client-portal-view" style="display: none;">
+        <div class="portal-card">
+          <div class="portal-header">
+            <div class="portal-user-info">
+              <div class="portal-avatar">👤</div>
+              <div>
+                <h2 id="client-greeting-name" style="font-size: 22px; color: var(--secondary);">Bonjour Client</h2>
+                <div style="font-size: 13px; color: var(--text-muted);">
+                  Compte Client MoneyLink • <span id="client-phone-display" style="font-weight: 600;">+221...</span>
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+              <span class="badge badge-emerald">🔒 Protection Séquestre Active</span>
+              <button id="client-refresh-orders-btn" class="btn btn-outline btn-sm">🔄 Actualiser</button>
+            </div>
+          </div>
+
+          <div class="portal-kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">Solde Portefeuille Disponible</div>
+              <div id="client-wallet-balance" class="kpi-value highlight-primary">0 FCFA</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Commandes Passées</div>
+              <div id="client-total-orders" class="kpi-value">0</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Abonnement Premium (500 F)</div>
+              <div id="client-sub-badge" class="kpi-value highlight-gold" style="font-size: 18px;">30 Jours d'Essai (TRIAL)</div>
+            </div>
+          </div>
+
+          <h3 style="font-size: 18px; color: var(--secondary); margin-bottom: 16px;">📦 Mes Commandes &amp; Codes Secrets de Réception</h3>
+          <div id="client-orders-list">
+            <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+              Chargement de vos commandes...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VUE ESPACE MARCHAND -->
+      <div id="merchant-portal-view" style="display: none;">
+        <div class="portal-card">
+          <div class="portal-header">
+            <div class="portal-user-info">
+              <div class="portal-avatar" style="background: rgba(0, 168, 107, 0.15);">🏪</div>
+              <div>
+                <h2 id="merchant-greeting-name" style="font-size: 22px; color: var(--secondary);">Espace Marchand Pro</h2>
+                <div style="font-size: 13px; color: var(--text-muted);">
+                  Boutique : <strong id="merchant-shop-name">Store</strong> • <span id="merchant-city-display">Dakar</span> 🇸🇳
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <button id="merchant-add-product-btn" class="btn btn-primary btn-sm">
+                ➕ Ajouter un Produit
+              </button>
+              <button id="merchant-refresh-btn" class="btn btn-outline btn-sm">🔄 Actualiser</button>
+            </div>
+          </div>
+
+          <!-- KPI Marchand en direct de PostgreSQL -->
+          <div class="portal-kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">Chiffre d'Affaires Garanti</div>
+              <div id="merchant-kpi-volume" class="kpi-value highlight-primary">0 FCFA</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Solde Débloqué Disponible</div>
+              <div id="merchant-kpi-wallet-available" class="kpi-value highlight-primary">0 FCFA</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Solde sous Séquestre (En cours)</div>
+              <div id="merchant-kpi-wallet-locked" class="kpi-value highlight-gold">0 FCFA</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Commandes à Expédier</div>
+              <div id="merchant-kpi-pending-shipment" class="kpi-value">0</div>
+            </div>
+          </div>
+
+          <!-- Onglets de Gestion Marchand -->
+          <div class="portal-tabs">
+            <button class="portal-tab-btn active" data-tab="merchant-products-tab">📦 Mon Catalogue &amp; Stock</button>
+            <button class="portal-tab-btn" data-tab="merchant-orders-tab">📋 Commandes Reçues (<span id="merchant-orders-count-badge">0</span>)</button>
+          </div>
+
+          <!-- Tab 1: Produits du Marchand -->
+          <div id="merchant-products-tab" class="portal-tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <h4 style="color: var(--secondary);">Inventaire de votre boutique</h4>
+              <button id="merchant-new-prod-btn-2" class="btn btn-primary btn-sm">➕ Nouveau Produit</button>
+            </div>
+            <div id="merchant-products-list">
+              <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+                Chargement de vos produits...
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 2: Commandes Reçues -->
+          <div id="merchant-orders-tab" class="portal-tab-content" style="display: none;">
+            <div style="margin-bottom: 16px;">
+              <h4 style="color: var(--secondary);">Commandes de vos clients</h4>
+              <p style="font-size: 13px; color: var(--text-muted);">
+                Expédiez les commandes payées, puis saisissez le code secret OTP à 6 chiffres remis par l'acheteur à la livraison pour débloquer immédiatement les fonds.
+              </p>
+            </div>
+            <div id="merchant-orders-list">
+              <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+                Chargement des commandes reçues...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================
        PARTENAIRES
        ======================================================================== -->
   <section class="partners-section">
@@ -188,9 +327,49 @@
   </section>
 
   <!-- ========================================================================
+       CATALOGUE PUBLIC E-COMMERCE SÉCURISÉ (#catalogue)
+       ======================================================================== -->
+  <section class="catalog-section" id="catalogue">
+    <div class="container">
+      <div class="catalog-header">
+        <div class="badge badge-emerald">Marketplace Tiers de Confiance</div>
+        <h2>🛍️ Catalogue Produits &amp; Boutiques Agréées</h2>
+        <p>Commandez en toute sécurité auprès des meilleurs commerçants du Sénégal. Votre paiement est garanti en séquestre jusqu'à validation de votre code secret.</p>
+      </div>
+
+      <div class="catalog-controls">
+        <!-- Recherche -->
+        <div class="catalog-search-box">
+          <span class="catalog-search-icon">🔍</span>
+          <input type="text" id="catalog-search-input" class="catalog-search-input" placeholder="Rechercher un produit, une marque, une boutique (ex: Nike, Robe, iPhone...)" />
+        </div>
+
+        <!-- Filtres par Catégorie -->
+        <div class="category-pills" id="category-pills">
+          <button class="category-pill active" data-category="Tous">Tous les articles</button>
+          <button class="category-pill" data-category="High-Tech & Téléphonie">High-Tech &amp; Téléphonie</button>
+          <button class="category-pill" data-category="Mode & Chaussures">Mode &amp; Chaussures</button>
+          <button class="category-pill" data-category="Maison & Bureau">Maison &amp; Bureau</button>
+          <button class="category-pill" data-category="Beauté & Santé">Beauté &amp; Santé</button>
+          <button class="category-pill" data-category="Sports & Loisirs">Sports &amp; Loisirs</button>
+          <button class="category-pill" data-category="Alimentation & Épicerie">Alimentation</button>
+        </div>
+      </div>
+
+      <!-- Grille des Produits -->
+      <div id="products-grid" class="products-grid">
+        <div style="grid-column: 1 / -1; text-align: center; padding: 60px; color: var(--text-muted);">
+          <div style="font-size: 32px; margin-bottom: 12px;">⏳</div>
+          Chargement du catalogue en direct de la base de données...
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================
        FONCTIONNALITÉS CLES
        ======================================================================== -->
-  <section class="section" id="sequestre">
+  <section class="section" id="sequestre" style="background: var(--surface-alt);">
     <div class="container">
       <div class="section-header">
         <div class="badge badge-emerald">L'Innovation MoneyLink</div>
@@ -202,13 +381,13 @@
         <div class="feature-card">
           <div class="feature-icon-box">🔒</div>
           <h3>Séquestre Intelligent (Escrow)</h3>
-          <p>L'argent n'est débloqué au commerçant que lorsque l'acheteur confirme la bonne réception de la marchandise.</p>
+          <p>L'argent n'est débloqué au commerçant que lorsque l'acheteur confirme la bonne réception de la marchandise avec son code secret OTP.</p>
         </div>
 
         <div class="feature-card">
           <div class="feature-icon-box">📱</div>
-          <h3>Recharge Wave &amp; Orange Money</h3>
-          <p>Alimentez votre portefeuille ou payez instantanément avec les moyens de paiement les plus populaires du pays.</p>
+          <h3>Règlement Wave &amp; Orange Money</h3>
+          <p>Alimentez votre portefeuille ou payez instantanément avec les moyens de paiement les plus populaires du Sénégal.</p>
         </div>
 
         <div class="feature-card">
@@ -232,7 +411,7 @@
         <div class="feature-card">
           <div class="feature-icon-box">🛡️</div>
           <h3>Médiation des Litiges</h3>
-          <p>En cas de problème (colis non conforme ou endommagé), l'équipe MoneyLink intervient rapidement pour arbitrer.</p>
+          <p>En cas de problème (colis non conforme ou endommagé), l'équipe MoneyLink intervient rapidement pour arbitrer en toute neutralité.</p>
         </div>
       </div>
     </div>
@@ -307,9 +486,9 @@
           <li><span class="check-icon">✓</span> Support client prioritaire 7j/7 basé à Dakar</li>
           <li><span class="check-icon">✓</span> Sans engagement, résiliable à tout moment en 1 clic</li>
         </ul>
-        <a href="#mobile" class="btn btn-primary" style="width: 100%;">
+        <button id="activate-trial-btn" class="btn btn-primary" style="width: 100%;">
           Activer mon 1er mois gratuit
-        </a>
+        </button>
       </div>
 
       <!-- Simulateur de Frais et Séquestre -->
@@ -336,9 +515,9 @@
   </section>
 
   <!-- ========================================================================
-       APPLICATION MOBILE (AVEC PLACEHOLDERS EXPLICITES)
+       APPLICATION MOBILE
        ======================================================================== -->
-  <section class="container" id="mobile">
+  <section class="container" id="mobile" style="margin-top: 60px; margin-bottom: 60px;">
     <div class="app-section">
       <div class="app-grid">
         <div class="app-content">
@@ -348,7 +527,6 @@
             Effectuez vos paiements sécurisés, gérez vos ventes, suivez vos livraisons et faites fructifier votre épargne directement depuis votre smartphone.
           </p>
           <div class="store-buttons">
-            <!-- Google Play Button Placeholder -->
             <a href="#google-play-placeholder" class="store-btn" onclick="alert('L\'application Android est en cours de finalisation pour le Google Play Store.')">
               <span class="placeholder-pill">Bientôt disponible</span>
               <div class="store-btn-icon">🤖</div>
@@ -358,7 +536,6 @@
               </div>
             </a>
 
-            <!-- App Store Button Placeholder -->
             <a href="#app-store-placeholder" class="store-btn" onclick="alert('L\'application iOS est en cours de validation pour l\'Apple App Store.')">
               <span class="placeholder-pill">Bientôt disponible</span>
               <div class="store-btn-icon">🍏</div>
@@ -404,7 +581,7 @@
         <div class="feature-card">
           <div class="feature-icon-box">🛡️</div>
           <h3>Audit &amp; Traçabilité 100%</h3>
-          <p>Chaque mouvement financier fait l'objet d'une écriture comptable immuable et horodatée.</p>
+          <p>Chaque mouvement financier fait l'objet d'une écriture comptable immuable et horodatée dans PostgreSQL.</p>
         </div>
       </div>
     </div>
@@ -423,11 +600,11 @@
       <div class="faq-list">
         <div class="faq-item">
           <h3>Que se passe-t-il si je ne reçois pas mon colis ?</h3>
-          <p>Si vous ne recevez pas votre commande ou si l'article est non conforme, vous n'avez qu'à ouvrir un litige dans l'application. Vos fonds restent bloqués en sécurité et vous êtes intégralement remboursé si le marchand ne livre pas.</p>
+          <p>Si vous ne recevez pas votre commande ou si l'article est non conforme, vous pouvez ouvrir un litige en 1 clic dans votre espace client. Vos fonds restent bloqués en sécurité et vous êtes intégralement remboursé si le marchand ne livre pas.</p>
         </div>
         <div class="faq-item">
           <h3>Comment le commerçant est-il payé ?</h3>
-          <p>Dès que le client communique son code secret OTP de livraison au commerçant (ou au livreur) et que celui-ci le saisit sur MoneyLink, les fonds sont instantanément crédités sur son portefeuille et peuvent être transférés sur Wave ou Orange Money.</p>
+          <p>Dès que le client communique son code secret OTP de livraison au commerçant (ou au livreur) et que celui-ci le valide sur MoneyLink, les fonds sont instantanément crédités sur son portefeuille et peuvent être retirés sur Wave ou Orange Money.</p>
         </div>
         <div class="faq-item">
           <h3>Combien coûte MoneyLink ?</h3>
@@ -458,10 +635,10 @@
         <div class="footer-col">
           <h4>Services</h4>
           <ul>
+            <li><a href="#catalogue">Catalogue Public</a></li>
             <li><a href="#sequestre">Séquestre Escrow</a></li>
             <li><a href="#tarifs">Abonnement (500 F)</a></li>
-            <li><a href="#sequestre">Coffres d'Épargne</a></li>
-            <li><a href="https://moneylink-1.onrender.com" target="_blank" rel="noopener">Espace Marchand</a></li>
+            <li><a href="https://moneylink-1.onrender.com" target="_blank" rel="noopener">Dashboard Admin</a></li>
           </ul>
         </div>
 
@@ -496,6 +673,322 @@
       </div>
     </div>
   </footer>
+
+  <!-- ========================================================================
+       MODALES & DRAWERS INTERACTIFS
+       ======================================================================== -->
+
+  <!-- 1. MODALE AUTHENTIFICATION (CONNEXION / INSCRIPTION CLIENT & MARCHAND) -->
+  <div id="auth-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <button class="modal-close-btn" data-close-modal="auth-modal">&times;</button>
+      <h3 class="modal-title">Espace MoneyLink</h3>
+      <p class="modal-subtitle">Accédez à vos commandes ou gérez votre boutique.</p>
+
+      <!-- Onglets Auth -->
+      <div class="auth-tabs">
+        <button class="auth-tab-btn active" data-auth-tab="login-tab">Connexion</button>
+        <button class="auth-tab-btn" data-auth-tab="register-client-tab">Compte Client</button>
+        <button class="auth-tab-btn" data-auth-tab="register-merchant-tab">Compte Marchand</button>
+      </div>
+
+      <!-- Formulaire Connexion -->
+      <form id="login-form" class="auth-form-content">
+        <div class="form-group">
+          <label class="form-label" for="login-identifier">Numéro de téléphone ou Email</label>
+          <input type="text" id="login-identifier" class="form-input" placeholder="+221770000004 ou client@moneylink.sn" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="login-password">Mot de passe</label>
+          <input type="password" id="login-password" class="form-input" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
+          Se Connecter 🚀
+        </button>
+      </form>
+
+      <!-- Formulaire Inscription Client -->
+      <form id="register-client-form" class="auth-form-content" style="display: none;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label class="form-label" for="reg-client-fname">Prénom</label>
+            <input type="text" id="reg-client-fname" class="form-input" placeholder="Moussa" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="reg-client-lname">Nom</label>
+            <input type="text" id="reg-client-lname" class="form-input" placeholder="Fall" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reg-client-phone">Téléphone (+221...)</label>
+          <input type="tel" id="reg-client-phone" class="form-input" placeholder="+221771234567" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reg-client-email">Email</label>
+          <input type="email" id="reg-client-email" class="form-input" placeholder="moussa@exemple.sn" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reg-client-password">Mot de passe (min 6 car.)</label>
+          <input type="password" id="reg-client-password" class="form-input" placeholder="••••••••" required minlength="6" />
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
+          Créer mon Compte Client (30j Essai Offerts) 🎁
+        </button>
+      </form>
+
+      <!-- Formulaire Inscription Marchand -->
+      <form id="register-merchant-form" class="auth-form-content" style="display: none;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label class="form-label" for="reg-merch-fname">Prénom du gérant</label>
+            <input type="text" id="reg-merch-fname" class="form-input" placeholder="Aminata" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="reg-merch-lname">Nom</label>
+            <input type="text" id="reg-merch-lname" class="form-input" placeholder="Ba" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reg-merch-shop">Nom de la Boutique / Commerce</label>
+          <input type="text" id="reg-merch-shop" class="form-input" placeholder="Ba Couture Dakar" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reg-merch-type">Catégorie d'activité</label>
+          <select id="reg-merch-type" class="form-select">
+            <option value="Mode & Habillement">Mode &amp; Habillement</option>
+            <option value="High-Tech & Électronique">High-Tech &amp; Électronique</option>
+            <option value="Beauté & Cosmétiques">Beauté &amp; Cosmétiques</option>
+            <option value="Maison & Décoration">Maison &amp; Décoration</option>
+            <option value="Commerce Général">Commerce Général</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reg-merch-phone">Téléphone professionnel (+221...)</label>
+          <input type="tel" id="reg-merch-phone" class="form-input" placeholder="+221776543210" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reg-merch-email">Email professionnel</label>
+          <input type="email" id="reg-merch-email" class="form-input" placeholder="contact@bacouture.sn" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reg-merch-password">Mot de passe</label>
+          <input type="password" id="reg-merch-password" class="form-input" placeholder="••••••••" required minlength="6" />
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
+          Ouvrir mon Espace Marchand 🏪
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. DRAWER DU PANIER D'ACHAT -->
+  <div id="cart-drawer-backdrop" class="cart-drawer-backdrop">
+    <div class="cart-drawer">
+      <div class="cart-drawer-header">
+        <h3 style="font-size: 18px; color: var(--secondary); display: flex; align-items: center; gap: 8px;">
+          🛒 Votre Panier d'Achat
+        </h3>
+        <button id="close-cart-btn" class="modal-close-btn" style="position: static;">&times;</button>
+      </div>
+
+      <div id="cart-items-container" class="cart-drawer-body">
+        <!-- Rempli dynamiquement -->
+        <div style="text-align: center; padding: 60px 20px; color: var(--text-muted);">
+          <div style="font-size: 40px; margin-bottom: 12px;">🛍️</div>
+          Votre panier est actuellement vide.
+        </div>
+      </div>
+
+      <div class="cart-drawer-footer">
+        <div class="cart-summary-row">
+          <span>Sous-total articles :</span>
+          <strong id="cart-subtotal">0 FCFA</strong>
+        </div>
+        <div class="cart-summary-row">
+          <span>Frais de séquestre (1%) :</span>
+          <strong id="cart-escrow-fee" style="color: var(--primary);">0 FCFA</strong>
+        </div>
+        <div class="cart-summary-total">
+          <span>Total à régler :</span>
+          <span id="cart-total-amount" style="color: var(--secondary);">0 FCFA</span>
+        </div>
+        <button id="cart-checkout-btn" class="btn btn-primary" style="width: 100%;" disabled>
+          Passer la Commande Sécurisée 🔒
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. MODALE CHECKOUT & PAIEMENT SÉQUÉSTRÉ -->
+  <div id="checkout-modal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 580px;">
+      <button class="modal-close-btn" data-close-modal="checkout-modal">&times;</button>
+      <h3 class="modal-title">🔒 Règlement Sécurisé avec Séquestre</h3>
+      <p class="modal-subtitle">Vos fonds seront verrouillés jusqu'à ce que vous receviez votre commande.</p>
+
+      <form id="checkout-form">
+        <div class="form-group">
+          <label class="form-label" for="checkout-address">Adresse de livraison (Quartier, Ville)</label>
+          <input type="text" id="checkout-address" class="form-input" placeholder="Ex: Mermoz, Dakar (près de la pharmacie)" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="checkout-phone">Téléphone pour la livraison</label>
+          <input type="tel" id="checkout-phone" class="form-input" placeholder="+221770000000" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="checkout-notes">Instructions au livreur (facultatif)</label>
+          <input type="text" id="checkout-notes" class="form-input" placeholder="Ex: Appeler à l'arrivée" />
+        </div>
+
+        <label class="form-label">Sélectionnez votre moyen de paiement Mobile Money :</label>
+        <div class="payment-methods-grid">
+          <div class="payment-method-card active" data-method="WAVE_MOCK">
+            <span style="font-size: 20px;">🌊</span>
+            <div class="payment-method-name">Wave Sénégal</div>
+            <div class="payment-method-sub">Instantané sans frais</div>
+          </div>
+          <div class="payment-method-card" data-method="OM_MOCK">
+            <span style="font-size: 20px;">🍊</span>
+            <div class="payment-method-name">Orange Money</div>
+            <div class="payment-method-sub">Code QR / OTP</div>
+          </div>
+          <div class="payment-method-card" data-method="WALLET">
+            <span style="font-size: 20px;">💳</span>
+            <div class="payment-method-name">Solde MoneyLink</div>
+            <div class="payment-method-sub" id="checkout-wallet-avail">Portefeuille</div>
+          </div>
+          <div class="payment-method-card" data-method="FREE_MOCK">
+            <span style="font-size: 20px;">🆓</span>
+            <div class="payment-method-name">Free Money</div>
+            <div class="payment-method-sub">Zone Sénégal</div>
+          </div>
+        </div>
+
+        <div style="background: var(--surface-alt); padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 800;">
+            <span>Total Débité :</span>
+            <span id="checkout-total-display" style="color: var(--primary-dark);">0 FCFA</span>
+          </div>
+        </div>
+
+        <button type="submit" id="checkout-submit-btn" class="btn btn-primary" style="width: 100%;">
+          Payer &amp; Verrouiller en Séquestre 🔒
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 4. MODALE DETAIL PRODUIT -->
+  <div id="product-detail-modal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 580px;">
+      <button class="modal-close-btn" data-close-modal="product-detail-modal">&times;</button>
+      <div id="product-detail-body">
+        <!-- Rempli dynamiquement -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. MODALE AJOUT / MODIFICATION PRODUIT MARCHAND -->
+  <div id="product-form-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <button class="modal-close-btn" data-close-modal="product-form-modal">&times;</button>
+      <h3 id="product-form-title" class="modal-title">Ajouter un Produit</h3>
+      <p class="modal-subtitle">Publiez votre article dans le catalogue public MoneyLink.</p>
+
+      <form id="merchant-product-form">
+        <input type="hidden" id="prod-edit-id" />
+        <div class="form-group">
+          <label class="form-label" for="prod-form-name">Nom du produit</label>
+          <input type="text" id="prod-form-name" class="form-input" placeholder="Ex: Chaussures Cuir Homme" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="prod-form-category">Catégorie</label>
+          <select id="prod-form-category" class="form-select">
+            <option value="High-Tech & Téléphonie">High-Tech &amp; Téléphonie</option>
+            <option value="Mode & Chaussures">Mode &amp; Chaussures</option>
+            <option value="Maison & Bureau">Maison &amp; Bureau</option>
+            <option value="Beauté & Santé">Beauté &amp; Santé</option>
+            <option value="Sports & Loisirs">Sports &amp; Loisirs</option>
+            <option value="Alimentation & Épicerie">Alimentation &amp; Épicerie</option>
+            <option value="Général">Général</option>
+          </select>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label class="form-label" for="prod-form-price">Prix (FCFA)</label>
+            <input type="number" id="prod-form-price" class="form-input" placeholder="25000" min="100" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="prod-form-stock">Stock disponible</label>
+            <input type="number" id="prod-form-stock" class="form-input" placeholder="10" min="0" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="prod-form-image">URL de l'image (Lien direct)</label>
+          <input type="url" id="prod-form-image" class="form-input" placeholder="https://images.unsplash.com/photo-..." />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="prod-form-desc">Description du produit</label>
+          <textarea id="prod-form-desc" class="form-textarea" placeholder="Détails, taille, couleur, spécifications techniques..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          Enregistrer le Produit ✅
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 6. MODALE VALIDATION CODE SECRET DE LIVRAISON (MARCHAND) -->
+  <div id="validate-otp-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <button class="modal-close-btn" data-close-modal="validate-otp-modal">&times;</button>
+      <h3 class="modal-title">🔑 Déblocage des Fonds Séquestrés</h3>
+      <p class="modal-subtitle">Saisissez le code secret à 6 chiffres transmis par votre acheteur lors de la livraison.</p>
+
+      <form id="validate-otp-form">
+        <input type="hidden" id="otp-order-id" />
+        <div class="form-group">
+          <label class="form-label" for="otp-code-input">Code Secret Client (6 chiffres)</label>
+          <input type="text" id="otp-code-input" class="form-input" placeholder="Ex: 849201" maxlength="6" style="font-size: 24px; font-weight: 800; text-align: center; letter-spacing: 6px;" required />
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          Valider le Code &amp; Encaisser les Fonds 💰
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 7. MODALE OUVERTURE DE LITIGE (CLIENT) -->
+  <div id="dispute-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <button class="modal-close-btn" data-close-modal="dispute-modal">&times;</button>
+      <h3 class="modal-title">⚠️ Déclarer un Litige</h3>
+      <p class="modal-subtitle">Vos fonds restent sécurisés en séquestre pendant l'arbitrage.</p>
+
+      <form id="dispute-form">
+        <input type="hidden" id="dispute-order-id" />
+        <div class="form-group">
+          <label class="form-label" for="dispute-reason">Motif du litige</label>
+          <select id="dispute-reason" class="form-select">
+            <option value="DAMAGED">Colis endommagé ou détérioré</option>
+            <option value="NOT_RECEIVED">Colis non reçu</option>
+            <option value="WRONG_ITEM">Article non conforme à la commande</option>
+            <option value="INCOMPLETE">Article incomplet / pièces manquantes</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="dispute-desc">Explications détaillées</label>
+          <textarea id="dispute-desc" class="form-textarea" placeholder="Décrivez précisément le problème rencontré..." required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; background: #EF4444; border-color: #EF4444;">
+          Ouvrir le Litige &amp; Geler les Fonds 🛡️
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- CONTENEUR DES TOASTS NOTIFICATIONS -->
+  <div id="toast-container" class="toast-container"></div>
 
   <script src="app.js"></script>
 </body>

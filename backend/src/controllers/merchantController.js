@@ -1,6 +1,6 @@
 /**
  * MoneyLink — MerchantController (Espace & Catalogue Commerçant)
- * Prise en charge PostgreSQL avec fallback mémoire
+ * Prise en charge PostgreSQL avec fallback mémoire & protections IDOR
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -85,6 +85,140 @@ export class MerchantController {
   }
 
   /**
+   * Catalogue public : Liste tous les produits actifs de tous les commerçants
+   * Supporte filtres : ?search=..., ?category=..., ?merchant_id=...
+   */
+  static async listAllProducts(req, res, next) {
+    try {
+      const { search, category, merchant_id } = req.query;
+      let products = [];
+
+      if (pool) {
+        try {
+          let sql = `
+            SELECT p.*,
+                   m.business_name AS merchant_name,
+                   m.city AS merchant_city,
+                   m.phone AS merchant_phone,
+                   m.logo_url AS merchant_logo,
+                   m.is_verified AS merchant_is_verified
+            FROM products p
+            JOIN merchants m ON p.merchant_id = m.id
+            WHERE p.is_active = true AND m.status = 'ACTIVE'
+          `;
+          const params = [];
+          let paramIdx = 1;
+
+          if (merchant_id) {
+            sql += ` AND p.merchant_id = $${paramIdx++}`;
+            params.push(merchant_id);
+          }
+          if (category && category !== 'all' && category !== 'Tous') {
+            sql += ` AND LOWER(p.category) = LOWER($${paramIdx++})`;
+            params.push(category);
+          }
+          if (search) {
+            sql += ` AND (LOWER(p.name) LIKE LOWER($${paramIdx}) OR LOWER(p.description) LIKE LOWER($${paramIdx}) OR LOWER(m.business_name) LIKE LOWER($${paramIdx}))`;
+            params.push(`%${search.trim()}%`);
+            paramIdx++;
+          }
+
+          sql += ' ORDER BY p.created_at DESC';
+
+          const resDb = await query(sql, params);
+          if (resDb?.rows) products = resDb.rows;
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      if (products.length === 0) {
+        let memProds = memoryStore.products.filter(p => p.is_active);
+
+        if (merchant_id) {
+          memProds = memProds.filter(p => p.merchant_id === merchant_id);
+        }
+        if (category && category !== 'all' && category !== 'Tous') {
+          memProds = memProds.filter(p => p.category && p.category.toLowerCase() === category.toLowerCase());
+        }
+        if (search) {
+          const q = search.toLowerCase();
+          memProds = memProds.filter(p => p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q)));
+        }
+
+        products = memProds.map(p => {
+          const m = memoryStore.merchants.find(merchant => merchant.id === p.merchant_id);
+          return {
+            ...p,
+            merchant_name: m?.business_name || 'Commerçant MoneyLink',
+            merchant_city: m?.city || 'Dakar',
+            merchant_phone: m?.phone || '',
+            merchant_logo: m?.logo_url || '',
+            merchant_is_verified: m?.is_verified ?? false
+          };
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        count: products.length,
+        data: products
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Espace Marchand : Récupère tous les produits du commerçant connecté (actifs et inactifs)
+   */
+  static async getMerchantMyProducts(req, res, next) {
+    try {
+      let merchant = null;
+      if (pool) {
+        try {
+          const mRes = await query('SELECT * FROM merchants WHERE user_id = $1 LIMIT 1', [req.user.id]);
+          if (mRes?.rows?.length > 0) merchant = mRes.rows[0];
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+      if (!merchant) {
+        merchant = memoryStore.merchants.find(m => m.user_id === req.user.id);
+      }
+
+      if (!merchant) {
+        return res.status(403).json({
+          success: false,
+          error: 'Profil commerçant introuvable.'
+        });
+      }
+
+      let products = [];
+      if (pool) {
+        try {
+          const pRes = await query('SELECT * FROM products WHERE merchant_id = $1 ORDER BY created_at DESC', [merchant.id]);
+          if (pRes?.rows) products = pRes.rows;
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      if (products.length === 0) {
+        products = memoryStore.products.filter(p => p.merchant_id === merchant.id);
+      }
+
+      return res.status(200).json({
+        success: true,
+        merchant,
+        data: products
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
    * Ajout d'un nouveau produit par le commerçant
    */
   static async createProduct(req, res, next) {
@@ -162,6 +296,262 @@ export class MerchantController {
         success: true,
         message: 'Produit ajouté avec succès au catalogue.',
         data: createdProduct
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Modification d'un produit existant (avec protection IDOR)
+   */
+  static async updateProduct(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { name, description, price, stock, image_url, category, is_active } = req.body;
+
+      // 1. Récupération du profil commerçant de l'utilisateur connecté
+      let merchant = null;
+      if (pool) {
+        try {
+          const mRes = await query('SELECT * FROM merchants WHERE user_id = $1 LIMIT 1', [req.user.id]);
+          if (mRes?.rows?.length > 0) merchant = mRes.rows[0];
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+      if (!merchant) merchant = memoryStore.merchants.find(m => m.user_id === req.user.id);
+      if (!merchant) {
+        return res.status(403).json({ success: false, error: 'Profil commerçant introuvable.' });
+      }
+
+      // 2. Vérification d'existence du produit et contrôle IDOR
+      let existingProduct = null;
+      if (pool) {
+        try {
+          const pCheck = await query('SELECT * FROM products WHERE id = $1 LIMIT 1', [id]);
+          if (pCheck?.rows?.length > 0) existingProduct = pCheck.rows[0];
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+      if (!existingProduct) existingProduct = memoryStore.products.find(p => p.id === id);
+
+      if (!existingProduct) {
+        return res.status(404).json({ success: false, error: 'Produit introuvable.' });
+      }
+
+      if (existingProduct.merchant_id !== merchant.id) {
+        return res.status(403).json({
+          success: false,
+          error: 'Accès interdit. Vous ne pouvez modifier que vos propres produits.'
+        });
+      }
+
+      // 3. Application des modifications
+      const updatedName = name !== undefined ? name.trim() : existingProduct.name;
+      const updatedDesc = description !== undefined ? description : existingProduct.description;
+      const updatedPrice = price !== undefined ? parseFloat(price) : parseFloat(existingProduct.price);
+      const updatedStock = stock !== undefined ? parseInt(stock, 10) : parseInt(existingProduct.stock, 10);
+      const updatedImage = image_url !== undefined ? image_url : existingProduct.image_url;
+      const updatedCat = category !== undefined ? category : existingProduct.category;
+      const updatedActive = is_active !== undefined ? Boolean(is_active) : existingProduct.is_active;
+
+      let updatedProduct = null;
+      if (pool) {
+        try {
+          const updRes = await query(`
+            UPDATE products
+            SET name = $1,
+                description = $2,
+                price = $3,
+                stock = $4,
+                image_url = $5,
+                category = $6,
+                is_active = $7,
+                updated_at = NOW()
+            WHERE id = $8 AND merchant_id = $9
+            RETURNING *;
+          `, [
+            updatedName,
+            updatedDesc,
+            updatedPrice,
+            updatedStock,
+            updatedImage,
+            updatedCat,
+            updatedActive,
+            id,
+            merchant.id
+          ]);
+          if (updRes?.rows?.length > 0) updatedProduct = updRes.rows[0];
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      // Miroir memoryStore
+      const memProduct = memoryStore.products.find(p => p.id === id);
+      if (memProduct) {
+        memProduct.name = updatedName;
+        memProduct.description = updatedDesc;
+        memProduct.price = updatedPrice;
+        memProduct.stock = updatedStock;
+        memProduct.image_url = updatedImage;
+        memProduct.category = updatedCat;
+        memProduct.is_active = updatedActive;
+        memProduct.updated_at = new Date().toISOString();
+        if (!updatedProduct) updatedProduct = memProduct;
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Produit mis à jour avec succès.',
+        data: updatedProduct
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Mise à jour rapide du stock disponible (avec protection IDOR)
+   */
+  static async updateProductStock(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { stock } = req.body;
+
+      if (stock === undefined || isNaN(parseInt(stock, 10)) || parseInt(stock, 10) < 0) {
+        return res.status(400).json({ success: false, error: 'Quantité de stock invalide (doit être >= 0).' });
+      }
+
+      const newStock = parseInt(stock, 10);
+
+      // Profil commerçant
+      let merchant = null;
+      if (pool) {
+        try {
+          const mRes = await query('SELECT * FROM merchants WHERE user_id = $1 LIMIT 1', [req.user.id]);
+          if (mRes?.rows?.length > 0) merchant = mRes.rows[0];
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+      if (!merchant) merchant = memoryStore.merchants.find(m => m.user_id === req.user.id);
+      if (!merchant) return res.status(403).json({ success: false, error: 'Profil commerçant introuvable.' });
+
+      // IDOR check
+      let existingProduct = null;
+      if (pool) {
+        try {
+          const pCheck = await query('SELECT * FROM products WHERE id = $1 LIMIT 1', [id]);
+          if (pCheck?.rows?.length > 0) existingProduct = pCheck.rows[0];
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+      if (!existingProduct) existingProduct = memoryStore.products.find(p => p.id === id);
+
+      if (!existingProduct) return res.status(404).json({ success: false, error: 'Produit introuvable.' });
+
+      if (existingProduct.merchant_id !== merchant.id) {
+        return res.status(403).json({ success: false, error: 'Accès non autorisé pour modifier le stock de ce produit.' });
+      }
+
+      let updatedProduct = null;
+      if (pool) {
+        try {
+          const updRes = await query(`
+            UPDATE products
+            SET stock = $1,
+                updated_at = NOW()
+            WHERE id = $2 AND merchant_id = $3
+            RETURNING *;
+          `, [newStock, id, merchant.id]);
+          if (updRes?.rows?.length > 0) updatedProduct = updRes.rows[0];
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      const memProduct = memoryStore.products.find(p => p.id === id);
+      if (memProduct) {
+        memProduct.stock = newStock;
+        memProduct.updated_at = new Date().toISOString();
+        if (!updatedProduct) updatedProduct = memProduct;
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Stock mis à jour avec succès.',
+        data: updatedProduct
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Suppression / Désactivation d'un produit (avec protection IDOR)
+   */
+  static async deleteProduct(req, res, next) {
+    try {
+      const { id } = req.params;
+
+      // Profil commerçant
+      let merchant = null;
+      if (pool) {
+        try {
+          const mRes = await query('SELECT * FROM merchants WHERE user_id = $1 LIMIT 1', [req.user.id]);
+          if (mRes?.rows?.length > 0) merchant = mRes.rows[0];
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+      if (!merchant) merchant = memoryStore.merchants.find(m => m.user_id === req.user.id);
+      if (!merchant) return res.status(403).json({ success: false, error: 'Profil commerçant introuvable.' });
+
+      // IDOR check
+      let existingProduct = null;
+      if (pool) {
+        try {
+          const pCheck = await query('SELECT * FROM products WHERE id = $1 LIMIT 1', [id]);
+          if (pCheck?.rows?.length > 0) existingProduct = pCheck.rows[0];
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+      if (!existingProduct) existingProduct = memoryStore.products.find(p => p.id === id);
+
+      if (!existingProduct) return res.status(404).json({ success: false, error: 'Produit introuvable.' });
+
+      if (existingProduct.merchant_id !== merchant.id) {
+        return res.status(403).json({ success: false, error: 'Accès non autorisé pour supprimer ce produit.' });
+      }
+
+      // Désactivation logique du produit pour préserver l'historique des commandes
+      if (pool) {
+        try {
+          await query(`
+            UPDATE products
+            SET is_active = false,
+                updated_at = NOW()
+            WHERE id = $1 AND merchant_id = $2;
+          `, [id, merchant.id]);
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      const memIndex = memoryStore.products.findIndex(p => p.id === id);
+      if (memIndex !== -1) {
+        memoryStore.products[memIndex].is_active = false;
+        memoryStore.products[memIndex].updated_at = new Date().toISOString();
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Produit retiré du catalogue avec succès.'
       });
     } catch (err) {
       next(err);

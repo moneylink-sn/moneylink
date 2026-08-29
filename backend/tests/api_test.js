@@ -99,6 +99,60 @@ async function runTests() {
     const firstProduct = merchantDetails.data.data.products[0];
     console.log(`   Produit sélectionné: ${firstProduct.name} - ${firstProduct.price} FCFA`);
 
+    // 3b. Test Catalogue Public Global (/api/merchants/products)
+    console.log('\n3️⃣b Test Catalogue Public Global (/api/merchants/products)...');
+    const allProductsRes = await request('/merchants/products');
+    console.log(`   Status: ${allProductsRes.status}, Total produits publics actifs: ${allProductsRes.data.data.length}`);
+
+    // 3c. Test CRUD & Stock Marchand + Protection IDOR
+    console.log('\n3️⃣c Test Connexion & Gestion Produits Marchand (IDOR & Stock)...');
+    const merchantLoginRes = await request('/auth/login', {
+      method: 'POST',
+      body: { identifier: '+221770000002', password: 'Password123!' }
+    });
+    const merchantToken = merchantLoginRes.data.data.token;
+    const merchantAuthHeader = { Authorization: `Bearer ${merchantToken}` };
+
+    // Ajout produit par le marchand
+    const createProdRes = await request('/merchants/products', {
+      method: 'POST',
+      headers: merchantAuthHeader,
+      body: {
+        name: 'Casque Audio Pro Test',
+        description: 'Casque haute fidélité avec réduction de bruit',
+        price: 35000,
+        stock: 15,
+        category: 'High-Tech & Téléphonie',
+        image_url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500'
+      }
+    });
+    console.log(`   Produit créé par marchand : ${createProdRes.data.data.name} (ID: ${createProdRes.data.data.id})`);
+    const createdProdId = createProdRes.data.data.id;
+
+    // Modification produit
+    const updateProdRes = await request(`/merchants/products/${createdProdId}`, {
+      method: 'PUT',
+      headers: merchantAuthHeader,
+      body: { price: 32000, stock: 20 }
+    });
+    console.log(`   Produit mis à jour : Nouveau prix = ${updateProdRes.data.data.price} FCFA, Stock = ${updateProdRes.data.data.stock}`);
+
+    // Ajustement rapide du stock
+    const stockRes = await request(`/merchants/products/${createdProdId}/stock`, {
+      method: 'PATCH',
+      headers: merchantAuthHeader,
+      body: { stock: 25 }
+    });
+    console.log(`   Stock ajusté : Nouveau stock = ${stockRes.data.data.stock}`);
+
+    // Test Sécurité IDOR : Client essayant de modifier le produit du marchand
+    const idorRes = await request(`/merchants/products/${createdProdId}`, {
+      method: 'PUT',
+      headers: clientAuthHeader,
+      body: { price: 1000 }
+    });
+    console.log(`   Protection IDOR : Rejet accès non-marchand avec code ${idorRes.status} (Attendu: 403)`);
+
     // 4. Création d'une commande
     console.log('\n4️⃣ Création d’une commande par le client...');
     const orderRes = await request('/orders', {
