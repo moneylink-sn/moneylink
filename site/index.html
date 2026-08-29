@@ -81,7 +81,7 @@
         <li><a href="#faq">FAQ</a></li>
       </ul>
       <div class="nav-actions">
-        <a href="https://admin.moneylink.sn" class="btn btn-outline btn-sm" target="_blank" rel="noopener">
+        <a href="https://moneylink-1.onrender.com" class="btn btn-outline btn-sm" target="_blank" rel="noopener">
           Espace Pro / Admin
         </a>
         <a href="#mobile" class="btn btn-primary btn-sm">
@@ -311,6 +311,27 @@
           Activer mon 1er mois gratuit
         </a>
       </div>
+
+      <!-- Simulateur de Frais et Séquestre -->
+      <div class="calculator-card" style="max-width: 600px; margin: 40px auto 0; background: #FFFFFF; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 32px; box-shadow: var(--shadow-sm); text-align: center;">
+        <h3 style="font-size: 20px; color: var(--secondary); margin-bottom: 8px;">🧮 Simulateur de Transaction Sécurisée</h3>
+        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">Estimez instantanément la commission de séquestre (1%) pour vos ventes ou achats.</p>
+        <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+          <label for="calc-amount" style="font-weight: 600; font-size: 14px; color: var(--text-main);">Montant de la commande :</label>
+          <input type="number" id="calc-amount" value="50000" min="500" step="500" style="padding: 10px 16px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 16px; font-weight: 700; width: 160px; text-align: right; color: var(--secondary); outline: none;" />
+          <span style="font-weight: 700; color: var(--primary);">FCFA</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; background: var(--surface-alt); padding: 18px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+          <div>
+            <div style="font-size: 12px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Frais de Séquestre (1%)</div>
+            <div id="calc-fee" style="font-size: 22px; font-weight: 800; color: var(--primary); margin-top: 4px;">500 FCFA</div>
+          </div>
+          <div>
+            <div style="font-size: 12px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Montant Reçu par le Vendeur</div>
+            <div id="calc-net" style="font-size: 22px; font-weight: 800; color: var(--secondary); margin-top: 4px;">49 500 FCFA</div>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -440,7 +461,7 @@
             <li><a href="#sequestre">Séquestre Escrow</a></li>
             <li><a href="#tarifs">Abonnement (500 F)</a></li>
             <li><a href="#sequestre">Coffres d'Épargne</a></li>
-            <li><a href="https://admin.moneylink.sn" target="_blank" rel="noopener">Espace Marchand</a></li>
+            <li><a href="https://moneylink-1.onrender.com" target="_blank" rel="noopener">Espace Marchand</a></li>
           </ul>
         </div>
 
@@ -448,8 +469,8 @@
           <h4>Plateformes</h4>
           <ul>
             <li><a href="https://moneylink.sn">Site Public (moneylink.sn)</a></li>
-            <li><a href="https://api.moneylink.sn/api/health" target="_blank" rel="noopener">API Backend Status</a></li>
-            <li><a href="https://admin.moneylink.sn" target="_blank" rel="noopener">Dashboard Admin</a></li>
+            <li><a href="https://moneylink-kd6v.onrender.com/api/health" target="_blank" rel="noopener" id="api-status-link"><span id="api-status-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;margin-right:6px;vertical-align:middle;"></span><span id="api-status-text">API Backend Status</span></a></li>
+            <li><a href="https://moneylink-1.onrender.com" target="_blank" rel="noopener">Dashboard Admin</a></li>
             <li><a href="#mobile">Application Mobile</a></li>
           </ul>
         </div>
@@ -476,5 +497,6 @@
     </div>
   </footer>
 
+  <script src="app.js"></script>
 </body>
 </html>
