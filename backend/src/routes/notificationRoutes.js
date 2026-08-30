@@ -5,7 +5,7 @@
 import { Router } from 'express';
 import { NotificationController } from '../controllers/notificationController.js';
 import { authenticateJWT } from '../middleware/auth.js';
-import { requireRole } from '../middleware/roles.js';
+import { requireRole, requireSuperAdmin } from '../middleware/roles.js';
 
 const router = Router();
 
@@ -15,8 +15,8 @@ router.get('/', NotificationController.getNotifications);
 router.put('/:id/read', NotificationController.markAsRead);
 router.put('/read-all', NotificationController.markAllAsRead);
 
-// Déclencheurs réservés aux administrateurs & Workers
-router.post('/test-dispatch', requireRole('ADMIN'), NotificationController.testDispatch);
-router.post('/jobs/savings-reminders', requireRole('ADMIN'), NotificationController.triggerSavingsReminderJob);
+// Déclencheurs strictement réservés au Super Administrateur (Codé Samb)
+router.post('/test-dispatch', requireSuperAdmin, NotificationController.testDispatch);
+router.post('/jobs/savings-reminders', requireSuperAdmin, NotificationController.triggerSavingsReminderJob);
 
 export default router;

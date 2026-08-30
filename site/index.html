@@ -94,11 +94,6 @@
             Connexion / Compte
           </button>
         </div>
-
-        <!-- Lien Dashboard Admin -->
-        <a href="https://moneylink-1.onrender.com" class="btn btn-outline btn-sm" target="_blank" rel="noopener" title="Dashboard Administrateur MoneyLink">
-          Admin ⚙️
-        </a>
       </div>
     </div>
   </nav>
@@ -385,9 +380,9 @@
         </div>
 
         <div class="feature-card">
-          <div class="feature-icon-box">📱</div>
-          <h3>Règlement Wave &amp; Orange Money</h3>
-          <p>Alimentez votre portefeuille ou payez instantanément avec les moyens de paiement les plus populaires du Sénégal.</p>
+          <div class="feature-icon-box">💬</div>
+          <h3>Commande &amp; Échanges Directs</h3>
+          <p>Commandez via WhatsApp directement auprès du commerçant tout en profitant de la sécurité et du suivi MoneyLink.</p>
         </div>
 
         <div class="feature-card">
@@ -431,26 +426,26 @@
       <div class="steps-grid">
         <div class="step-card">
           <div class="step-badge">1</div>
-          <h3>Commande &amp; Verrouillage</h3>
-          <p>L'acheteur passe commande et règle via Wave ou Orange Money. Les fonds sont sécurisés sur un compte sous séquestre MoneyLink.</p>
+          <h3>Commande &amp; WhatsApp</h3>
+          <p>L'acheteur passe commande avec son adresse et entre en contact direct avec le commerçant sur WhatsApp avec sa référence de commande.</p>
         </div>
 
         <div class="step-card">
           <div class="step-badge">2</div>
-          <h3>Expédition du Colis</h3>
-          <p>Le vendeur reçoit la notification de paiement garanti et expédie la commande en toute sérénité.</p>
+          <h3>Expédition &amp; Coursier</h3>
+          <p>Le commerçant prépare la commande et l'expédie avec un coursier dédié dont les coordonnées vous sont communiquées.</p>
         </div>
 
         <div class="step-card">
           <div class="step-badge">3</div>
           <h3>Réception &amp; Code OTP</h3>
-          <p>À la livraison, l'acheteur vérifie son colis et communique au vendeur son code secret de réception à 6 chiffres.</p>
+          <p>À la livraison, l'acheteur vérifie son colis et transmet son code secret OTP à 6 chiffres pour valider la remise de la marchandise.</p>
         </div>
 
         <div class="step-card">
           <div class="step-badge">4</div>
-          <h3>Déblocage Immédiat</h3>
-          <p>La saisie du code débloque automatiquement les fonds sur le portefeuille du vendeur, prêts à être retirés.</p>
+          <h3>Validation &amp; Clôture Sécurisée</h3>
+          <p>La validation du code secret garantit la bonne exécution de la livraison et clôture la transaction en toute sérénité.</p>
         </div>
       </div>
     </div>
@@ -637,8 +632,8 @@
           <ul>
             <li><a href="#catalogue">Catalogue Public</a></li>
             <li><a href="#sequestre">Séquestre Escrow</a></li>
+            <li><a href="#comment-ca-marche">Comment ça marche</a></li>
             <li><a href="#tarifs">Abonnement (500 F)</a></li>
-            <li><a href="https://moneylink-1.onrender.com" target="_blank" rel="noopener">Dashboard Admin</a></li>
           </ul>
         </div>
 
@@ -647,8 +642,8 @@
           <ul>
             <li><a href="https://moneylink.sn">Site Public (moneylink.sn)</a></li>
             <li><a href="https://moneylink-kd6v.onrender.com/api/health" target="_blank" rel="noopener" id="api-status-link"><span id="api-status-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;margin-right:6px;vertical-align:middle;"></span><span id="api-status-text">API Backend Status</span></a></li>
-            <li><a href="https://moneylink-1.onrender.com" target="_blank" rel="noopener">Dashboard Admin</a></li>
             <li><a href="#mobile">Application Mobile</a></li>
+            <li><a href="#securite">Sécurité &amp; Confiance</a></li>
           </ul>
         </div>
 
@@ -812,8 +807,9 @@
           <span>Total à régler :</span>
           <span id="cart-total-amount" style="color: var(--secondary);">0 FCFA</span>
         </div>
-        <button id="cart-checkout-btn" class="btn btn-primary" style="width: 100%;" disabled>
-          Passer la Commande Sécurisée 🔒
+        <button id="cart-checkout-btn" class="btn btn-primary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;" disabled>
+          <span>💬</span>
+          <span>Commander via WhatsApp</span>
         </button>
       </div>
     </div>
@@ -823,8 +819,8 @@
   <div id="checkout-modal" class="modal-backdrop">
     <div class="modal-dialog" style="max-width: 580px;">
       <button class="modal-close-btn" data-close-modal="checkout-modal">&times;</button>
-      <h3 class="modal-title">🔒 Règlement Sécurisé avec Séquestre</h3>
-      <p class="modal-subtitle">Vos fonds seront verrouillés jusqu'à ce que vous receviez votre commande.</p>
+      <h3 class="modal-title">💬 Commander via WhatsApp</h3>
+      <p class="modal-subtitle">Finalisez votre commande avec le commerçant sous la garantie et le code OTP MoneyLink.</p>
 
       <form id="checkout-form">
         <div class="form-group">

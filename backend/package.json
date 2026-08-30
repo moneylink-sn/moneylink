@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "test": "node tests/order_delivery_pg_schema_test.js && node tests/master_features_test.js && node tests/admin_login_e2e_test.js && node tests/statistics_test.js && node tests/api_test.js && node tests/auth_pg_test.js && node tests/pg_auth_sql_unit_test.js && node tests/persistence_restart_test.js && node tests/notification_test.js && node tests/payment_webhook_test.js && node tests/e2e_journey_test.js",
+    "test": "node tests/security_admin_access_and_whatsapp_flow_test.js && node tests/order_delivery_pg_schema_test.js && node tests/master_features_test.js && node tests/admin_login_e2e_test.js && node tests/statistics_test.js && node tests/api_test.js && node tests/auth_pg_test.js && node tests/pg_auth_sql_unit_test.js && node tests/persistence_restart_test.js && node tests/notification_test.js && node tests/payment_webhook_test.js && node tests/e2e_journey_test.js",
 
     "db:init": "node ../database/init.js",
     "db:migrate": "node ../database/init.js",

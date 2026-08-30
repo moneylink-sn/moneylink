@@ -122,6 +122,13 @@ const Auth = {
 
   async login(identifier, password) {
     try {
+      // Nettoyage préventif complet de toute ancienne session
+      localStorage.removeItem('moneylink_user');
+      localStorage.removeItem('moneylink_token');
+      localStorage.removeItem('moneylink_admin_user');
+      localStorage.removeItem('moneylink_admin_token');
+      sessionStorage.clear();
+
       const res = await Api.post('/auth/login', { identifier, password });
       if (res.success && res.data) {
         AppState.user = res.data.user;
@@ -146,6 +153,12 @@ const Auth = {
 
   async registerClient(data) {
     try {
+      localStorage.removeItem('moneylink_user');
+      localStorage.removeItem('moneylink_token');
+      localStorage.removeItem('moneylink_admin_user');
+      localStorage.removeItem('moneylink_admin_token');
+      sessionStorage.clear();
+
       const res = await Api.post('/auth/register', {
         ...data,
         role: 'CLIENT'
@@ -170,6 +183,12 @@ const Auth = {
 
   async registerMerchant(data) {
     try {
+      localStorage.removeItem('moneylink_user');
+      localStorage.removeItem('moneylink_token');
+      localStorage.removeItem('moneylink_admin_user');
+      localStorage.removeItem('moneylink_admin_token');
+      sessionStorage.clear();
+
       const res = await Api.post('/auth/register', {
         ...data,
         role: 'MERCHANT'
@@ -196,8 +215,14 @@ const Auth = {
   logout() {
     AppState.user = null;
     AppState.token = null;
+    AppState.cart = [];
     localStorage.removeItem('moneylink_user');
     localStorage.removeItem('moneylink_token');
+    localStorage.removeItem('moneylink_cart');
+    localStorage.removeItem('moneylink_admin_user');
+    localStorage.removeItem('moneylink_admin_token');
+    sessionStorage.clear();
+    Cart.updateUI();
     Toast.show('Déconnexion effectuée.', 'info');
     this.updateUI();
   },
@@ -212,7 +237,22 @@ const Auth = {
 
     if (AppState.user && AppState.token) {
       const isMerchant = AppState.user.role === 'MERCHANT';
-      const roleLabel = isMerchant ? '🏪 MARCHAND' : '👤 CLIENT';
+      
+      // Contrôle d'identité strict Super Admin (Codé Samb uniquement)
+      const cleanPhone = (AppState.user.phone || '').replace(/[\s+-]/g, '');
+      const isSuperAdmin = AppState.user.role === 'ADMIN' && (
+        AppState.user.id === 'a0000000-0000-0000-0000-000000000001' ||
+        (AppState.user.email && AppState.user.email.trim().toLowerCase() === 'admin@moneylink.sn') ||
+        cleanPhone.endsWith('770000001')
+      );
+
+      let roleLabel = '👤 CLIENT';
+      if (isSuperAdmin) {
+        roleLabel = '👑 SUPER ADMIN';
+      } else if (isMerchant) {
+        roleLabel = '🏪 MARCHAND';
+      }
+
       const displayName = isMerchant
         ? (AppState.user.merchant?.business_name || `${AppState.user.first_name} Store`)
         : `${AppState.user.first_name} ${AppState.user.last_name}`;
@@ -220,7 +260,7 @@ const Auth = {
       authContainer.innerHTML = `
         <div class="user-nav-dropdown">
           <button id="user-menu-btn" class="user-nav-btn">
-            <span>${isMerchant ? '🏪' : '👤'}</span>
+            <span>${isSuperAdmin ? '👑' : (isMerchant ? '🏪' : '👤')}</span>
             <span>${escapeHTML(displayName)}</span>
             <span style="font-size: 10px;">▼</span>
           </button>
@@ -229,6 +269,11 @@ const Auth = {
               <div class="user-menu-name">${escapeHTML(displayName)}</div>
               <div class="user-menu-role-tag">${roleLabel}</div>
             </div>
+            ${isSuperAdmin ? `
+              <a class="user-menu-link" id="menu-admin-console-link" href="https://moneylink-1.onrender.com" target="_blank" rel="noopener" style="color: #00E59B; font-weight: 700;">
+                <span>⚙️</span> Console Super Admin
+              </a>
+            ` : ''}
             <a class="user-menu-link" id="menu-my-space-btn">
               <span>📊</span> Mon Espace (${isMerchant ? 'Ventes & Stock' : 'Mes Commandes'})
             </a>
@@ -854,7 +899,7 @@ const ClientPortal = {
               <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px;">
                 ${order.whatsapp_url ? `
                   <a href="${order.whatsapp_url}" target="_blank" rel="noopener" class="btn btn-sm" style="background: #25D366; color: #FFFFFF; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
-                    <span>💬</span> Discuter sur WhatsApp
+                    <span>💬</span> Continuer la discussion sur WhatsApp
                   </a>
                 ` : ''}
                 ${isLockedOrShipped ? `
