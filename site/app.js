@@ -1253,7 +1253,7 @@ const MerchantPortal = {
                 ${products.map(p => {
                   const isLowStock = p.stock <= 3;
                   const isOut = p.stock === 0;
-                  const statusLabel = p.is_active ? 'Publié' : 'Désactivé';
+                  const statusLabel = p.is_active ? 'ACTIF' : 'INACTIF';
                   const statusBadgeClass = p.is_active ? 'CONFIRMED' : 'DISPUTED';
 
                   return `
@@ -1706,7 +1706,7 @@ function setupFormHandlers() {
         Toast.show('Produit mis à jour avec succès.');
       } else {
         await Api.post('/merchants/products', payload);
-        Toast.show('Produit ajouté au catalogue avec succès.');
+        Toast.show('✅ Produit publié avec succès !');
       }
       Modal.close('product-form-modal');
       MerchantPortal.loadProducts();

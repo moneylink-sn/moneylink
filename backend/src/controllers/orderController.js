@@ -68,7 +68,7 @@ export class OrderController {
           const mRes = await query('SELECT * FROM merchants WHERE id = $1 AND status = \'ACTIVE\' LIMIT 1', [merchant_id]);
           if (mRes?.rows?.length > 0) merchant = mRes.rows[0];
 
-          const pRes = await query('SELECT * FROM products WHERE merchant_id = $1 AND is_active = true', [merchant_id]);
+          const pRes = await query('SELECT * FROM products WHERE merchant_id = $1 AND is_active = true AND (status = \'APPROVED\' OR status IS NULL)', [merchant_id]);
           if (pRes?.rows?.length > 0) availableProducts = pRes.rows;
 
           // Recherche d'un livreur disponible
@@ -87,7 +87,7 @@ export class OrderController {
       }
 
       if (availableProducts.length === 0) {
-        availableProducts = memoryStore.products.filter(p => p.merchant_id === merchant_id && p.is_active);
+        availableProducts = memoryStore.products.filter(p => p.merchant_id === merchant_id && p.is_active && (p.status === 'APPROVED' || !p.status));
       }
 
       if (!assignedDeliveryPerson && memoryStore.delivery_persons) {
