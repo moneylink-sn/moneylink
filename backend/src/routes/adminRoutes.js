@@ -28,5 +28,6 @@ router.get('/delivery-persons', AdminController.listDeliveryPersons);
 router.get('/products', AdminController.listProducts);
 router.put('/products/:id/status', AdminController.updateProductStatus);
 router.delete('/products/:id', AdminController.deleteProduct);
+router.post('/catalog/clean-duplicates', AdminController.cleanCatalogDuplicates);
 
 export default router;

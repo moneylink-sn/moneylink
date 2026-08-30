@@ -604,6 +604,37 @@ export class MerchantController {
         location
       } = req.body;
 
+      const trimmedName = name.trim();
+
+      // Protection Anti-Doublon pour un même commerçant :
+      // Vérifier si le commerçant a déjà un produit actif portant exactement le même nom
+      if (pool) {
+        try {
+          const dupCheck = await query(
+            'SELECT id FROM products WHERE merchant_id = $1 AND LOWER(TRIM(name)) = LOWER($2) AND is_active = true LIMIT 1',
+            [merchant.id, trimmedName]
+          );
+          if (dupCheck?.rows?.length > 0) {
+            return res.status(409).json({
+              success: false,
+              error: 'Vous possédez déjà un produit actif portant ce nom dans votre boutique. Modifiez plutôt sa fiche ou son stock.'
+            });
+          }
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      const memDup = memoryStore.products.find(
+        p => p.merchant_id === merchant.id && p.name.trim().toLowerCase() === trimmedName.toLowerCase() && p.is_active
+      );
+      if (memDup) {
+        return res.status(409).json({
+          success: false,
+          error: 'Vous possédez déjà un produit actif portant ce nom dans votre boutique. Modifiez plutôt sa fiche ou son stock.'
+        });
+      }
+
       const productId = uuidv4();
       const productPrice = parseFloat(price);
       const productStock = parseInt(stock, 10) || 0;
@@ -620,7 +651,7 @@ export class MerchantController {
       let createdProduct = {
         id: productId,
         merchant_id: merchant.id,
-        name: name.trim(),
+        name: trimmedName,
         description: description || '',
         price: productPrice,
         stock: productStock,

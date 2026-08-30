@@ -788,6 +788,175 @@ export async function ensureProductImagesConsistency(client) {
 }
 
 /**
+ * Assainit, déduplique et protège le catalogue de produits dans PostgreSQL et memoryStore.
+ * Conserve scrupuleusement les vrais produits des marchands et les 6 fiches officielles.
+ * Supprime/désactive les doublons techniques et les artefacts de tests.
+ */
+export async function ensureCatalogCleanAndDeduplicated(client) {
+  const stats = {
+    testProductsRemoved: 0,
+    technicalDuplicatesRemoved: 0,
+    productsKept: 0,
+    realProductsPreserved: 0
+  };
+
+  try {
+    if (client) {
+      // 1. Assurer la présence des 6 produits de référence avec leurs données et images exactes
+      const refProducts = initialSeedData.products || [];
+      for (const p of refProducts) {
+        await client.query(`
+          INSERT INTO products (
+            id, merchant_id, name, description, price, stock, image_url, category, is_active, status, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, 'APPROVED', NOW(), NOW())
+          ON CONFLICT (id) DO UPDATE SET
+            merchant_id = EXCLUDED.merchant_id,
+            name = EXCLUDED.name,
+            description = EXCLUDED.description,
+            price = EXCLUDED.price,
+            stock = EXCLUDED.stock,
+            image_url = EXCLUDED.image_url,
+            category = EXCLUDED.category,
+            is_active = true,
+            status = 'APPROVED',
+            updated_at = NOW();
+        `, [
+          p.id, p.merchant_id, p.name, p.description || '', p.price || 0, p.stock || 0,
+          p.image_url || null, p.category || 'Général'
+        ]);
+      }
+
+      // 2. Identifier les produits de test créés par les scripts automatisés
+      const testProdsRes = await client.query(`
+        SELECT p.id, p.name, p.merchant_id, m.business_name, u.email
+        FROM products p
+        LEFT JOIN merchants m ON p.merchant_id = m.id
+        LEFT JOIN users u ON m.user_id = u.id
+        WHERE p.id NOT LIKE 'p0000000-%'
+          AND (
+            p.name ILIKE '%Live 178%'
+            OR p.name ILIKE '%Live 179%'
+            OR p.name ILIKE '%Pro 17880%'
+            OR p.name ILIKE '%Pro 17881%'
+            OR p.name ILIKE '%Test 178%'
+            OR u.email ILIKE 'live.images%@moneylink.sn'
+            OR u.email ILIKE 'test.merchant%@moneylink.sn'
+            OR u.email ILIKE 'fall.tech%@moneylink.sn'
+            OR u.email ILIKE 'seck.tech%@moneylink.sn'
+            OR u.email ILIKE 'ndiaye.tech%@moneylink.sn'
+            OR u.email ILIKE 'test.instant%@moneylink.sn'
+            OR u.email ILIKE 'test.journey%@moneylink.sn'
+          )
+      `);
+
+      if (testProdsRes?.rows?.length > 0) {
+        const testIds = testProdsRes.rows.map(r => r.id);
+        // Supprimer des order_items uniquement si non liés à des commandes confirmées
+        await client.query(`
+          DELETE FROM order_items 
+          WHERE product_id = ANY($1::text[])
+            AND order_id NOT IN (SELECT id FROM orders WHERE status IN ('SHIPPED', 'CONFIRMED', 'DELIVERED', 'DISPUTED'))
+        `, [testIds]).catch(() => {});
+
+        const delRes = await client.query(`
+          DELETE FROM products WHERE id = ANY($1::text[])
+        `, [testIds]);
+
+        stats.testProductsRemoved += delRes.rowCount || testIds.length;
+      }
+
+      // 3. Déduplication technique exacte : si un commerçant a plusieurs produits identiques avec le même nom
+      const duplicateProdsRes = await client.query(`
+        SELECT id, merchant_id, LOWER(TRIM(name)) AS norm_name, created_at,
+               ROW_NUMBER() OVER (PARTITION BY merchant_id, LOWER(TRIM(name)) ORDER BY created_at ASC, id ASC) as row_num
+        FROM products
+        WHERE is_active = true
+      `);
+
+      if (duplicateProdsRes?.rows) {
+        const dupIds = duplicateProdsRes.rows
+          .filter(r => parseInt(r.row_num, 10) > 1)
+          .map(r => r.id);
+
+        if (dupIds.length > 0) {
+          await client.query(`
+            DELETE FROM order_items 
+            WHERE product_id = ANY($1::text[])
+              AND order_id NOT IN (SELECT id FROM orders WHERE status IN ('SHIPPED', 'CONFIRMED', 'DELIVERED', 'DISPUTED'))
+          `, [dupIds]).catch(() => {});
+
+          const dupDel = await client.query(`
+            DELETE FROM products WHERE id = ANY($1::text[])
+          `, [dupIds]);
+
+          stats.technicalDuplicatesRemoved += dupDel.rowCount || dupIds.length;
+        }
+      }
+
+      // 4. Nettoyer les marchands de test orphelins (sans vraies commandes)
+      await client.query(`
+        DELETE FROM merchants
+        WHERE id IN (
+          SELECT m.id FROM merchants m
+          JOIN users u ON m.user_id = u.id
+          WHERE (
+            u.email ILIKE 'live.images%@moneylink.sn'
+            OR u.email ILIKE 'test.merchant%@moneylink.sn'
+            OR u.email ILIKE 'fall.tech%@moneylink.sn'
+            OR u.email ILIKE 'seck.tech%@moneylink.sn'
+            OR u.email ILIKE 'ndiaye.tech%@moneylink.sn'
+            OR u.email ILIKE 'test.instant%@moneylink.sn'
+            OR u.email ILIKE 'test.journey%@moneylink.sn'
+          )
+          AND m.id NOT IN (SELECT merchant_id FROM orders WHERE status IN ('SHIPPED', 'CONFIRMED', 'DELIVERED', 'DISPUTED'))
+        )
+      `).catch(() => {});
+
+      // 5. Compter les produits restants et valider la préservation des vrais produits
+      const countRes = await client.query(`
+        SELECT COUNT(*) as total FROM products WHERE is_active = true AND (status = 'APPROVED' OR status IS NULL)
+      `);
+      stats.productsKept = parseInt(countRes.rows[0]?.total || '0', 10);
+
+      const realProdsRes = await client.query(`
+        SELECT COUNT(*) as total FROM products 
+        WHERE id NOT LIKE 'p0000000-%' AND is_active = true
+      `);
+      stats.realProductsPreserved = parseInt(realProdsRes.rows[0]?.total || '0', 10);
+    }
+
+    // 6. Déduplication et assainissement dans memoryStore
+    if (memoryStore.products) {
+      memoryStore.products = memoryStore.products.filter(p => {
+        const isRef = p.id.startsWith('p0000000-');
+        const isTestName = (p.name || '').includes('Live 178') || (p.name || '').includes('Pro 1788') || (p.name || '').includes('Test 178');
+        return isRef || !isTestName;
+      });
+
+      const seen = new Set();
+      const cleanMemProducts = [];
+      for (const p of memoryStore.products) {
+        const key = `${p.merchant_id}_${(p.name || '').trim().toLowerCase()}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          cleanMemProducts.push(p);
+        }
+      }
+      memoryStore.products = cleanMemProducts;
+
+      if (!client) {
+        stats.productsKept = memoryStore.products.filter(p => p.is_active).length;
+        stats.realProductsPreserved = memoryStore.products.filter(p => !p.id.startsWith('p0000000-') && p.is_active).length;
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️ Avertissement lors de la déduplication du catalogue :', err.message);
+  }
+
+  return stats;
+}
+
+/**
  * Assure la présence, le rôle ADMIN et le statut ACTIVE du compte administrateur racine
  */
 export async function ensureAdminAccount(client) {
@@ -881,6 +1050,7 @@ export async function checkDbHealth() {
         await ensureAdminAccount(client);
         await seedTablesIfEmpty(client);
         await ensureProductImagesConsistency(client);
+        await ensureCatalogCleanAndDeduplicated(client);
 
         return {
           connected: true,
@@ -1018,6 +1188,8 @@ export default {
   ensureAnalyticsEventsTable,
   ensureAdminAccount,
   seedTablesIfEmpty,
+  ensureProductImagesConsistency,
+  ensureCatalogCleanAndDeduplicated,
   memoryStore,
   pool
 };

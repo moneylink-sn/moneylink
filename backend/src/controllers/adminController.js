@@ -3,7 +3,7 @@
  * Prise en charge PostgreSQL avec fallback mémoire
  */
 
-import { memoryStore, query, pool } from '../config/db.js';
+import { memoryStore, query, pool, ensureCatalogCleanAndDeduplicated } from '../config/db.js';
 import { EscrowService } from '../services/escrowService.js';
 
 export class AdminController {
@@ -517,6 +517,39 @@ export class AdminController {
       return res.status(200).json({
         success: true,
         message: 'Produit désactivé par l’administrateur.'
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Assainissement & Déduplication du catalogue de produits (Super Admin)
+   */
+  static async cleanCatalogDuplicates(req, res, next) {
+    try {
+      let stats = null;
+      if (pool) {
+        try {
+          const client = await pool.connect();
+          try {
+            stats = await ensureCatalogCleanAndDeduplicated(client);
+          } finally {
+            client.release();
+          }
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      if (!stats) {
+        stats = await ensureCatalogCleanAndDeduplicated(null);
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Assainissement et déduplication du catalogue exécutés avec succès.',
+        data: stats
       });
     } catch (err) {
       next(err);
