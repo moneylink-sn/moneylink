@@ -48,12 +48,15 @@ function resolveApiBase() {
 
 export const API_BASE = resolveApiBase();
 
+export const DEFAULT_PRODUCT_PLACEHOLDER = '/assets/product-placeholder.svg';
+
 /**
  * Résout les URLs d'images relatives (ex: /api/uploads/...) vers l'URL absolue du backend
  */
-export function resolveImageUrl(url, fallback = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100') {
+export function resolveImageUrl(url, fallback = DEFAULT_PRODUCT_PLACEHOLDER) {
   if (!url || typeof url !== 'string' || !url.trim()) return fallback;
   const trimmed = url.trim();
+  if (trimmed === 'null' || trimmed === 'undefined') return fallback;
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
     return trimmed;
   }

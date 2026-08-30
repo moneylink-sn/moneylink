@@ -656,6 +656,138 @@ export async function seedTablesIfEmpty(client) {
 }
 
 /**
+ * Dictionnaire de photos authentiques et haute définition pour les catégories et mots-clés de produits
+ */
+export const AUTHENTIC_PRODUCT_IMAGES = {
+  PHONE: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80',
+  CHARGER: 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=600&auto=format&fit=crop&q=80',
+  BAG: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&auto=format&fit=crop&q=80',
+  CLOTHING: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=600&auto=format&fit=crop&q=80',
+  DRONE: 'https://images.unsplash.com/photo-1508614589041-895b88991e3e?w=600&auto=format&fit=crop&q=80',
+  HEADPHONES: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80',
+  LAPTOP: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=600&auto=format&fit=crop&q=80',
+  WATCH: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80',
+  SNEAKERS: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80',
+  FURNITURE: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=600&auto=format&fit=crop&q=80'
+};
+
+/**
+ * Détermine l'image authentique correspondant au nom et à la catégorie d'un produit
+ */
+export function getAuthenticImageForProduct(name = '', category = '', subcategory = '') {
+  const text = `${name} ${category} ${subcategory}`.toLowerCase();
+
+  if (text.includes('chargeur') || text.includes('charger') || text.includes('câble') || text.includes('cable') || text.includes('adaptateur')) {
+    return AUTHENTIC_PRODUCT_IMAGES.CHARGER;
+  }
+  if (text.includes('drone') || text.includes('quadricoptère') || text.includes('quadcopter') || text.includes('uav')) {
+    return AUTHENTIC_PRODUCT_IMAGES.DRONE;
+  }
+  if (text.includes('casque') || text.includes('écouteur') || text.includes('ecouteur') || text.includes('headphone') || text.includes('earphone') || text.includes('airpod') || text.includes('audio')) {
+    return AUTHENTIC_PRODUCT_IMAGES.HEADPHONES;
+  }
+  if (text.includes('téléphone') || text.includes('telephone') || text.includes('smartphone') || text.includes('iphone') || text.includes('samsung') || text.includes('xiaomi') || text.includes('redmi')) {
+    return AUTHENTIC_PRODUCT_IMAGES.PHONE;
+  }
+  if (text.includes('sac') || text.includes('bag') || text.includes('valise') || text.includes('sacoche') || text.includes('cartable') || text.includes('backpack')) {
+    return AUTHENTIC_PRODUCT_IMAGES.BAG;
+  }
+  if (text.includes('vêtement') || text.includes('vetement') || text.includes('habit') || text.includes('habille') || text.includes('maillot') || text.includes('t-shirt') || text.includes('tshirt') || text.includes('chemise') || text.includes('pantalon') || text.includes('robe')) {
+    return AUTHENTIC_PRODUCT_IMAGES.CLOTHING;
+  }
+  if (text.includes('ordinateur') || text.includes('laptop') || text.includes('macbook') || text.includes('pc portable') || text.includes('informatique')) {
+    return AUTHENTIC_PRODUCT_IMAGES.LAPTOP;
+  }
+  if (text.includes('montre') || text.includes('watch') || text.includes('smartwatch')) {
+    return AUTHENTIC_PRODUCT_IMAGES.WATCH;
+  }
+  if (text.includes('chaussure') || text.includes('sneaker') || text.includes('basket') || text.includes('nike') || text.includes('adidas') || text.includes('puma')) {
+    return AUTHENTIC_PRODUCT_IMAGES.SNEAKERS;
+  }
+  if (text.includes('lit') || text.includes('meuble') || text.includes('table') || text.includes('chaise') || text.includes('fauteuil') || text.includes('armoire')) {
+    return AUTHENTIC_PRODUCT_IMAGES.FURNITURE;
+  }
+
+  return null;
+}
+
+let productImagesCleaned = false;
+
+/**
+ * Assainit et garantit la cohérence des images de tous les produits PostgreSQL & MemoryStore
+ */
+export async function ensureProductImagesConsistency(client) {
+  if (productImagesCleaned) return;
+  try {
+    // 1. Assurer les 6 produits de référence avec leurs photos officielles
+    const refProducts = initialSeedData.products || [];
+    for (const p of refProducts) {
+      await client.query(`
+        INSERT INTO products (
+          id, merchant_id, name, description, price, stock, image_url, category, is_active, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
+          image_url = EXCLUDED.image_url,
+          category = EXCLUDED.category,
+          price = EXCLUDED.price,
+          is_active = true,
+          updated_at = NOW();
+      `, [
+        p.id, p.merchant_id, p.name, p.description || '', p.price || 0, p.stock || 0,
+        p.image_url || null, p.category || 'Général', p.is_active ?? true
+      ]);
+    }
+
+    // 2. Vérifier et assainir tous les produits existants dans PostgreSQL
+    const allProdsRes = await client.query('SELECT id, name, category, subcategory, image_url FROM products');
+    if (allProdsRes?.rows) {
+      for (const row of allProdsRes.rows) {
+        const img = row.image_url || '';
+        const isOldWatchFallback = img.includes('photo-1523275335684-37898b6baf30');
+        const isWatchName = (row.name || '').toLowerCase().includes('montre') || (row.category || '').toLowerCase().includes('connecté');
+        const authenticImg = getAuthenticImageForProduct(row.name, row.category, row.subcategory);
+
+        // Si le produit avait l'ancienne montre alors qu'il n'est pas une montre : corriger !
+        if (isOldWatchFallback && !isWatchName) {
+          const newImg = authenticImg || null;
+          await client.query('UPDATE products SET image_url = $1, updated_at = NOW() WHERE id = $2', [newImg, row.id]);
+        }
+        // Si le produit est un chargeur et a une image erronée (drone ou montre)
+        else if ((row.name || '').toLowerCase().includes('chargeur') && (!img || isOldWatchFallback || img.includes('drone'))) {
+          await client.query('UPDATE products SET image_url = $1, updated_at = NOW() WHERE id = $2', [AUTHENTIC_PRODUCT_IMAGES.CHARGER, row.id]);
+        }
+        // Si le produit est un drone et n'a pas d'image ou montre
+        else if ((row.name || '').toLowerCase().includes('drone') && (!img || isOldWatchFallback)) {
+          await client.query('UPDATE products SET image_url = $1, updated_at = NOW() WHERE id = $2', [AUTHENTIC_PRODUCT_IMAGES.DRONE, row.id]);
+        }
+      }
+    }
+
+    // 3. Aligner également le memoryStore
+    if (memoryStore.products) {
+      for (const p of memoryStore.products) {
+        const isOldWatchFallback = (p.image_url || '').includes('photo-1523275335684-37898b6baf30');
+        const isWatchName = (p.name || '').toLowerCase().includes('montre') || (p.category || '').toLowerCase().includes('connecté');
+        const authenticImg = getAuthenticImageForProduct(p.name, p.category, p.subcategory);
+
+        if (isOldWatchFallback && !isWatchName) {
+          p.image_url = authenticImg || null;
+        } else if ((p.name || '').toLowerCase().includes('chargeur') && (!p.image_url || isOldWatchFallback || (p.image_url || '').includes('drone'))) {
+          p.image_url = AUTHENTIC_PRODUCT_IMAGES.CHARGER;
+        } else if ((p.name || '').toLowerCase().includes('drone') && (!p.image_url || isOldWatchFallback)) {
+          p.image_url = AUTHENTIC_PRODUCT_IMAGES.DRONE;
+        }
+      }
+    }
+
+    productImagesCleaned = true;
+  } catch (err) {
+    console.warn('⚠️ Avertissement assainissement des images produits :', err.message);
+  }
+}
+
+/**
  * Assure la présence, le rôle ADMIN et le statut ACTIVE du compte administrateur racine
  */
 export async function ensureAdminAccount(client) {
@@ -748,6 +880,7 @@ export async function checkDbHealth() {
         await ensureAnalyticsEventsTable(client);
         await ensureAdminAccount(client);
         await seedTablesIfEmpty(client);
+        await ensureProductImagesConsistency(client);
 
         return {
           connected: true,

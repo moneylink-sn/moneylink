@@ -215,8 +215,9 @@ export function MerchantsPage() {
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <img
-                            src={resolveImageUrl(p.image_url, 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100')}
+                            src={resolveImageUrl(p.image_url)}
                             alt={p.name}
+                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = '/assets/product-placeholder.svg'; }}
                             style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }}
                           />
                           <div>

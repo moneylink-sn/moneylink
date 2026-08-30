@@ -220,6 +220,17 @@ export const initialSeedData = {
       image_url: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500',
       category: 'Objets Connectés',
       is_active: true
+    },
+    {
+      id: 'p0000000-0000-0000-0000-000000000006',
+      merchant_id: 'm0000000-0000-0000-0000-000000000002',
+      name: 'Chargeur Rapide GaN 65W 3 Ports',
+      description: 'Charge ultra-rapide pour MacBook, iPhone et Android en simultané.',
+      price: 12500.00,
+      stock: 40,
+      image_url: 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=500',
+      category: 'Accessoires',
+      is_active: true
     }
   ],
   delivery_persons: [

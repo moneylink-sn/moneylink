@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F1F5F9" />
+      <stop offset="100%" stop-color="#E2E8F0" />
+    </linearGradient>
+    <linearGradient id="iconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#94A3B8" />
+      <stop offset="100%" stop-color="#64748B" />
+    </linearGradient>
+    <filter id="subtleShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0F172A" flood-opacity="0.06" />
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="400" height="300" rx="12" fill="url(#bgGradient)" />
+
+  <!-- Inner subtle container -->
+  <rect x="24" y="24" width="352" height="252" rx="8" fill="#FFFFFF" fill-opacity="0.6" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="4 4" />
+
+  <!-- Product / Camera Icon -->
+  <g transform="translate(160, 95)" filter="url(#subtleShadow)">
+    <rect x="4" y="16" width="72" height="54" rx="10" fill="url(#iconGradient)" />
+    <path d="M26 16 L34 8 L46 8 L54 16 Z" fill="url(#iconGradient)" />
+    <circle cx="40" cy="43" r="16" fill="#FFFFFF" fill-opacity="0.9" />
+    <circle cx="40" cy="43" r="10" fill="url(#iconGradient)" />
+    <circle cx="62" cy="26" r="3.5" fill="#FFFFFF" fill-opacity="0.8" />
+  </g>
+
+  <!-- Text Labels -->
+  <text x="200" y="195" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#475569" letter-spacing="0.2">
+    Photo non disponible
+  </text>
+  <text x="200" y="216" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11.5" font-weight="500" fill="#94A3B8">
+    Aucune image associée à cet article
+  </text>
+
+  <!-- MoneyLink Safe Brand Micro-badge -->
+  <g transform="translate(150, 240)">
+    <rect x="0" y="0" width="100" height="20" rx="10" fill="#E0E7FF" fill-opacity="0.8" />
+    <text x="50" y="14" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9.5" font-weight="700" fill="#4338CA" letter-spacing="0.5">
+      MONEYLINK
+    </text>
+  </g>
+</svg>

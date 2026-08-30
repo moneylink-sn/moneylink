@@ -612,7 +612,7 @@ export class MerchantController {
       const productCity = city || merchant.city || 'Dakar';
       const productQuartier = quartier || merchant.quartier || '';
       const productLocation = location || `${productQuartier ? productQuartier + ', ' : ''}${productCity}`;
-      const productImageUrl = image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500';
+      const productImageUrl = (image_url && typeof image_url === 'string' && image_url.trim().length > 0) ? image_url.trim() : null;
       const initialStatus = 'APPROVED'; // Prêt pour catalogue public
 
       const nowIso = new Date().toISOString();
@@ -744,7 +744,7 @@ export class MerchantController {
       const updatedDesc = description !== undefined ? description : existingProduct.description;
       const updatedPrice = price !== undefined ? parseFloat(price) : parseFloat(existingProduct.price);
       const updatedStock = stock !== undefined ? parseInt(stock, 10) : parseInt(existingProduct.stock, 10);
-      const updatedImage = image_url !== undefined ? image_url : existingProduct.image_url;
+      const updatedImage = image_url !== undefined ? (image_url && typeof image_url === 'string' && image_url.trim().length > 0 ? image_url.trim() : null) : existingProduct.image_url;
       const updatedCat = category !== undefined ? category : existingProduct.category;
       const updatedSubcat = subcategory !== undefined ? subcategory : existingProduct.subcategory;
       const updatedCity = city !== undefined ? city : (existingProduct.city || merchant.city || 'Dakar');

@@ -10,12 +10,15 @@ const API_BASE_URL = window.MONEYLINK_API_URL || (
     : 'https://moneylink-kd6v.onrender.com'
 );
 
+const DEFAULT_PRODUCT_PLACEHOLDER = 'assets/product-placeholder.svg';
+
 /**
  * Résolution des URLs de médias et images (gère les URLs relatives /api/uploads/... vers le backend de production)
  */
-function resolveImageUrl(url, fallback = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500') {
+function resolveImageUrl(url, fallback = DEFAULT_PRODUCT_PLACEHOLDER) {
   if (!url || typeof url !== 'string' || !url.trim()) return fallback;
   const trimmed = url.trim();
+  if (trimmed === 'null' || trimmed === 'undefined') return fallback;
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
     return trimmed;
   }
@@ -437,7 +440,7 @@ const Catalog = {
       return `
         <div class="product-card" data-product-id="${p.id}">
           <div class="product-image-wrap" onclick="Catalog.openDetail('${p.id}')">
-            <img src="${escapeHTML(imageUrl)}" alt="${escapeHTML(p.name)}" loading="lazy" />
+            <img src="${escapeHTML(imageUrl)}" alt="${escapeHTML(p.name)}" loading="lazy" onerror="this.onerror=null; this.src='assets/product-placeholder.svg';" />
             <span class="product-category-tag">${escapeHTML(p.category || 'Général')}</span>
             <span class="product-escrow-badge">🔒 100% Séquestre</span>
           </div>
@@ -507,7 +510,7 @@ const Catalog = {
 
     body.innerHTML = `
       <div style="border-radius: var(--radius-md); overflow: hidden; height: 260px; background: #F1F5F9; margin-bottom: 20px;">
-        <img src="${escapeHTML(imageUrl)}" alt="${escapeHTML(product.name)}" style="width: 100%; height: 100%; object-fit: cover;" />
+        <img src="${escapeHTML(imageUrl)}" alt="${escapeHTML(product.name)}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='assets/product-placeholder.svg';" />
       </div>
       <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
         <div>
@@ -1217,14 +1220,13 @@ const MerchantPortal = {
   },
 
   removeProductImage() {
-    const defaultPlaceholder = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500';
     const imgInput = document.getElementById('prod-form-image');
     const imgPreview = document.getElementById('prod-form-image-preview');
     const removeBtn = document.getElementById('prod-form-remove-img-btn');
     const fileInput = document.getElementById('prod-form-file-input');
 
-    if (imgInput) imgInput.value = defaultPlaceholder;
-    if (imgPreview) imgPreview.src = defaultPlaceholder;
+    if (imgInput) imgInput.value = '';
+    if (imgPreview) imgPreview.src = DEFAULT_PRODUCT_PLACEHOLDER;
     if (removeBtn) removeBtn.style.display = 'none';
     if (fileInput) fileInput.value = '';
   },
@@ -1276,7 +1278,7 @@ const MerchantPortal = {
                     <tr>
                       <td>
                         <div style="display: flex; align-items: center; gap: 12px;">
-                          <img src="${escapeHTML(resolveImageUrl(p.image_url, 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200'))}" alt="${escapeHTML(p.name)}" style="width: 46px; height: 46px; border-radius: var(--radius-sm); object-fit: cover; border: 1px solid var(--border);" />
+                          <img src="${escapeHTML(resolveImageUrl(p.image_url))}" alt="${escapeHTML(p.name)}" style="width: 46px; height: 46px; border-radius: var(--radius-sm); object-fit: cover; border: 1px solid var(--border);" onerror="this.onerror=null; this.src='assets/product-placeholder.svg';" />
                           <div>
                             <strong style="color: var(--secondary); font-size: 14px;">${escapeHTML(p.name)}</strong>
                             ${p.subcategory ? `<div style="font-size: 11.5px; color: var(--text-muted);">${escapeHTML(p.subcategory)}</div>` : ''}
@@ -1475,9 +1477,8 @@ const MerchantPortal = {
     document.getElementById('product-form-title').textContent = 'Ajouter un Produit';
     document.getElementById('merchant-product-form').reset();
 
-    const defaultImg = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500';
-    document.getElementById('prod-form-image').value = defaultImg;
-    document.getElementById('prod-form-image-preview').src = defaultImg;
+    document.getElementById('prod-form-image').value = '';
+    document.getElementById('prod-form-image-preview').src = DEFAULT_PRODUCT_PLACEHOLDER;
     document.getElementById('prod-form-remove-img-btn').style.display = 'none';
     document.getElementById('prod-form-price-preview').textContent = '0 FCFA';
 
