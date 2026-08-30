@@ -48,5 +48,21 @@ function resolveApiBase() {
 
 export const API_BASE = resolveApiBase();
 
+/**
+ * Résout les URLs d'images relatives (ex: /api/uploads/...) vers l'URL absolue du backend
+ */
+export function resolveImageUrl(url, fallback = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100') {
+  if (!url || typeof url !== 'string' || !url.trim()) return fallback;
+  const trimmed = url.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
+    return trimmed;
+  }
+  const base = API_BASE.replace(/\/api$/, '');
+  if (trimmed.startsWith('/')) {
+    return `${base}${trimmed}`;
+  }
+  return `${base}/${trimmed}`;
+}
+
 export default API_BASE;
 

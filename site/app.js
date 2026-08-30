@@ -10,6 +10,22 @@ const API_BASE_URL = window.MONEYLINK_API_URL || (
     : 'https://moneylink-kd6v.onrender.com'
 );
 
+/**
+ * Résolution des URLs de médias et images (gère les URLs relatives /api/uploads/... vers le backend de production)
+ */
+function resolveImageUrl(url, fallback = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500') {
+  if (!url || typeof url !== 'string' || !url.trim()) return fallback;
+  const trimmed = url.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
+    return trimmed;
+  }
+  const cleanBase = API_BASE_URL.replace(/\/+$/, '');
+  if (trimmed.startsWith('/')) {
+    return `${cleanBase}${trimmed}`;
+  }
+  return `${cleanBase}/${trimmed}`;
+}
+
 // 2. État Global de l'Application
 const AppState = {
   user: null,
@@ -416,7 +432,7 @@ const Catalog = {
 
     grid.innerHTML = products.map(p => {
       const isOutOfStock = p.stock <= 0;
-      const imageUrl = p.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500';
+      const imageUrl = resolveImageUrl(p.image_url);
 
       return `
         <div class="product-card" data-product-id="${p.id}">
@@ -487,7 +503,7 @@ const Catalog = {
     if (!body) return;
 
     const isOutOfStock = product.stock <= 0;
-    const imageUrl = product.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500';
+    const imageUrl = resolveImageUrl(product.image_url);
 
     body.innerHTML = `
       <div style="border-radius: var(--radius-md); overflow: hidden; height: 260px; background: #F1F5F9; margin-bottom: 20px;">
@@ -652,7 +668,7 @@ const Cart = {
 
     container.innerHTML = AppState.cart.map(item => {
       const p = item.product;
-      const imageUrl = p.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500';
+      const imageUrl = resolveImageUrl(p.image_url);
       const lineTotal = parseFloat(p.price) * item.quantity;
 
       return `
@@ -978,7 +994,7 @@ const MerchantPortal = {
 
           if (shopNameEl) shopNameEl.textContent = merchant.business_name || 'Boutique Pro';
           if (cityEl) cityEl.textContent = merchant.city || 'Dakar';
-          if (headerLogoEl && merchant.logo_url) headerLogoEl.src = merchant.logo_url;
+          if (headerLogoEl && merchant.logo_url) headerLogoEl.src = resolveImageUrl(merchant.logo_url);
         }
 
         if (metrics) {
@@ -1044,7 +1060,7 @@ const MerchantPortal = {
           if (logoUrl) logoUrl.value = merchant.logo_url || '';
 
           if (logoPreview && merchant.logo_url) {
-            logoPreview.src = merchant.logo_url;
+            logoPreview.src = resolveImageUrl(merchant.logo_url);
             if (removeLogoBtn) removeLogoBtn.style.display = 'inline-flex';
           }
         }
@@ -1123,8 +1139,8 @@ const MerchantPortal = {
             const removeBtn = document.getElementById('merchant-remove-logo-btn');
 
             if (logoInput) logoInput.value = uploadedUrl;
-            if (logoPreview) logoPreview.src = uploadedUrl;
-            if (headerLogo) headerLogo.src = uploadedUrl;
+            if (logoPreview) logoPreview.src = resolveImageUrl(uploadedUrl);
+            if (headerLogo) headerLogo.src = resolveImageUrl(uploadedUrl);
             if (removeBtn) removeBtn.style.display = 'inline-flex';
 
             Toast.show('Logo téléversé avec succès ! Cliquez sur Enregistrer pour confirmer.');
@@ -1185,7 +1201,7 @@ const MerchantPortal = {
             const removeBtn = document.getElementById('prod-form-remove-img-btn');
 
             if (imgInput) imgInput.value = uploadedUrl;
-            if (imgPreview) imgPreview.src = uploadedUrl;
+            if (imgPreview) imgPreview.src = resolveImageUrl(uploadedUrl);
             if (removeBtn) removeBtn.style.display = 'inline-flex';
 
             Toast.show('Photo du produit téléversée avec succès !');
@@ -1260,7 +1276,7 @@ const MerchantPortal = {
                     <tr>
                       <td>
                         <div style="display: flex; align-items: center; gap: 12px;">
-                          <img src="${escapeHTML(p.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200')}" alt="${escapeHTML(p.name)}" style="width: 46px; height: 46px; border-radius: var(--radius-sm); object-fit: cover; border: 1px solid var(--border);" />
+                          <img src="${escapeHTML(resolveImageUrl(p.image_url, 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200'))}" alt="${escapeHTML(p.name)}" style="width: 46px; height: 46px; border-radius: var(--radius-sm); object-fit: cover; border: 1px solid var(--border);" />
                           <div>
                             <strong style="color: var(--secondary); font-size: 14px;">${escapeHTML(p.name)}</strong>
                             ${p.subcategory ? `<div style="font-size: 11.5px; color: var(--text-muted);">${escapeHTML(p.subcategory)}</div>` : ''}
@@ -1494,7 +1510,7 @@ const MerchantPortal = {
     document.getElementById('prod-form-city').value = product.city || 'Dakar';
     document.getElementById('prod-form-quartier').value = product.quartier || '';
     document.getElementById('prod-form-image').value = product.image_url || '';
-    document.getElementById('prod-form-image-preview').src = product.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500';
+    document.getElementById('prod-form-image-preview').src = resolveImageUrl(product.image_url);
     document.getElementById('prod-form-remove-img-btn').style.display = product.image_url ? 'inline-flex' : 'none';
     document.getElementById('prod-form-desc').value = product.description || '';
 

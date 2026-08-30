@@ -217,11 +217,13 @@ export class UploadController {
 
       const imgBuffer = Buffer.from(upload.data_base64, 'base64');
 
-      // En-têtes HTTP de performance et sécurité
+      // En-têtes HTTP de performance, interopérabilité et sécurité
       res.setHeader('Content-Type', upload.mime_type || 'image/jpeg');
       res.setHeader('Content-Length', imgBuffer.length);
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Content-Disposition', `inline; filename="${upload.filename || 'image'}"`);
 
       return res.end(imgBuffer);

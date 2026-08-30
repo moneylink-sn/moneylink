@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Store, CheckCircle, Shield, Package, Check, X, Trash2, Eye, EyeOff } from 'lucide-react';
-import { API_BASE } from '../config/api';
+import { API_BASE, resolveImageUrl } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 
 export function MerchantsPage() {
@@ -140,7 +140,7 @@ export function MerchantsPage() {
             <div key={m.id} className="card-table-container" style={{ padding: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
                 <img
-                  src={m.logo_url || '/assets/moneylink_logo_mark.svg'}
+                  src={resolveImageUrl(m.logo_url, '/assets/moneylink_logo_mark.svg')}
                   alt={m.business_name}
                   style={{ width: '54px', height: '54px', borderRadius: '12px', objectFit: 'cover', border: '1.5px solid #e2e8f0' }}
                 />
@@ -215,7 +215,7 @@ export function MerchantsPage() {
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <img
-                            src={p.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100'}
+                            src={resolveImageUrl(p.image_url, 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100')}
                             alt={p.name}
                             style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }}
                           />

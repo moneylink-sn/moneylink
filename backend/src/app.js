@@ -12,8 +12,10 @@ import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
 
-// Sécurité HTTP Headers
-app.use(helmet());
+// Sécurité HTTP Headers (avec autorisation de chargement cross-origin des médias téléversés)
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // Cross-Origin Resource Sharing (CORS)
 const isProduction = process.env.NODE_ENV === 'production';
