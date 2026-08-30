@@ -81,8 +81,11 @@ CREATE TABLE merchants (
     business_type VARCHAR(100) NOT NULL, -- Ex: 'Électronique', 'Mode & Beauté', 'Restauration'
     description TEXT,
     address TEXT NOT NULL,
+    quartier VARCHAR(150),
     city VARCHAR(100) NOT NULL DEFAULT 'Dakar',
+    country VARCHAR(100) NOT NULL DEFAULT 'Sénégal',
     phone VARCHAR(30),
+    whatsapp_phone VARCHAR(30),
     logo_url TEXT,
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'PENDING', 'SUSPENDED')),
@@ -106,6 +109,11 @@ CREATE TABLE products (
     stock INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
     image_url TEXT,
     category VARCHAR(100),
+    subcategory VARCHAR(100),
+    city VARCHAR(100) DEFAULT 'Dakar',
+    quartier VARCHAR(150),
+    location VARCHAR(255),
+    status VARCHAR(20) NOT NULL DEFAULT 'APPROVED' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'INACTIVE')),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -113,7 +121,24 @@ CREATE TABLE products (
 
 CREATE INDEX idx_products_merchant_id ON products(merchant_id);
 CREATE INDEX idx_products_category ON products(category);
+CREATE INDEX idx_products_status ON products(status);
 CREATE INDEX idx_products_is_active ON products(is_active);
+
+-- ----------------------------------------------------------------------------
+-- 4b. TABLE : MEDIA_UPLOADS (Stockage d'Images Persistant)
+-- ----------------------------------------------------------------------------
+CREATE TABLE media_uploads (
+    id TEXT PRIMARY KEY,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    filename TEXT NOT NULL,
+    mime_type VARCHAR(100) NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    data_base64 TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_media_uploads_user_id ON media_uploads(user_id);
+CREATE INDEX idx_media_uploads_created_at ON media_uploads(created_at DESC);
 
 -- ----------------------------------------------------------------------------
 -- 5. TABLE : DELIVERY_PERSONS (Livreurs & Coursiers Partenaires)

@@ -25,5 +25,8 @@ router.get('/disputes', AdminController.listDisputes);
 router.post('/disputes/:id/resolve', validate(resolveDisputeSchema), AdminController.resolveDispute);
 router.get('/subscriptions', SubscriptionController.listAdminSubscriptions);
 router.get('/delivery-persons', AdminController.listDeliveryPersons);
+router.get('/products', AdminController.listProducts);
+router.put('/products/:id/status', AdminController.updateProductStatus);
+router.delete('/products/:id', AdminController.deleteProduct);
 
 export default router;

@@ -38,6 +38,7 @@ let analyticsEventsInitialized = false;
 
 // Stockage mémoire de secours (initialisé avec les seeds de démo) pour tests et développement local autonome
 export const memoryStore = JSON.parse(JSON.stringify(initialSeedData));
+if (!memoryStore.media_uploads) memoryStore.media_uploads = [];
 
 // Initialisation réelle du Pool PostgreSQL
 if (process.env.DATABASE_URL && process.env.USE_SQLITE !== 'true') {
@@ -327,6 +328,33 @@ export async function ensureCoreTables(client) {
       CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
       CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
       CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
+
+      -- Extension Marchands & Produits
+      ALTER TABLE merchants ADD COLUMN IF NOT EXISTS whatsapp_phone TEXT;
+      ALTER TABLE merchants ADD COLUMN IF NOT EXISTS quartier TEXT;
+      ALTER TABLE merchants ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'Sénégal';
+
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS subcategory TEXT;
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS city TEXT DEFAULT 'Dakar';
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS quartier TEXT;
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS location TEXT;
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'APPROVED';
+
+      CREATE INDEX IF NOT EXISTS idx_products_status ON products(status);
+
+      -- Table de stockage persistant d'images
+      CREATE TABLE IF NOT EXISTS media_uploads (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          filename TEXT NOT NULL,
+          mime_type TEXT NOT NULL,
+          size_bytes INTEGER NOT NULL,
+          data_base64 TEXT NOT NULL,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_media_uploads_user_id ON media_uploads(user_id);
+      CREATE INDEX IF NOT EXISTS idx_media_uploads_created_at ON media_uploads(created_at DESC);
     `);
     coreTablesInitialized = true;
   } catch (err) {

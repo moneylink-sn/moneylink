@@ -353,4 +353,173 @@ export class AdminController {
       next(err);
     }
   }
+
+  /**
+   * Liste complète de tous les produits (avec filtrage par statut de modération)
+   */
+  static async listProducts(req, res, next) {
+    try {
+      const { status, search } = req.query;
+
+      if (pool) {
+        try {
+          let sql = `
+            SELECT p.*,
+                   m.business_name AS merchant_name,
+                   m.city AS merchant_city,
+                   m.phone AS merchant_phone
+            FROM products p
+            JOIN merchants m ON p.merchant_id = m.id
+            WHERE 1=1
+          `;
+          const params = [];
+          let pIdx = 1;
+
+          if (status && status !== 'all') {
+            sql += ` AND p.status = $${pIdx++}`;
+            params.push(status);
+          }
+          if (search) {
+            sql += ` AND (LOWER(p.name) LIKE LOWER($${pIdx}) OR LOWER(COALESCE(p.description, '')) LIKE LOWER($${pIdx}) OR LOWER(m.business_name) LIKE LOWER($${pIdx}))`;
+            params.push(`%${search.trim()}%`);
+            pIdx++;
+          }
+
+          sql += ' ORDER BY p.created_at DESC';
+
+          const pRes = await query(sql, params);
+          if (pRes?.rows) {
+            return res.status(200).json({
+              success: true,
+              count: pRes.rows.length,
+              data: pRes.rows
+            });
+          }
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      let products = (memoryStore.products || []).map(p => {
+        const m = (memoryStore.merchants || []).find(merchant => merchant.id === p.merchant_id);
+        return {
+          ...p,
+          merchant_name: m?.business_name || 'Commerçant',
+          merchant_city: m?.city || 'Dakar',
+          merchant_phone: m?.phone || ''
+        };
+      });
+
+      if (status && status !== 'all') {
+        products = products.filter(p => p.status === status);
+      }
+      if (search) {
+        const q = search.toLowerCase();
+        products = products.filter(p => p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q)) || p.merchant_name.toLowerCase().includes(q));
+      }
+
+      return res.status(200).json({
+        success: true,
+        count: products.length,
+        data: products
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Modération du statut d'un produit par l'administrateur (APPROVED, REJECTED, PENDING, INACTIVE)
+   */
+  static async updateProductStatus(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { status, is_active } = req.body;
+
+      if (!status && is_active === undefined) {
+        return res.status(400).json({ success: false, error: 'Statut ou état is_active requis.' });
+      }
+
+      let updatedProduct = null;
+
+      if (pool) {
+        try {
+          const current = await query('SELECT * FROM products WHERE id = $1 LIMIT 1', [id]);
+          if (current?.rows?.length > 0) {
+            const newStatus = status || current.rows[0].status || 'APPROVED';
+            const newActive = is_active !== undefined ? Boolean(is_active) : (newStatus === 'APPROVED');
+
+            const updRes = await query(`
+              UPDATE products
+              SET status = $1,
+                  is_active = $2,
+                  updated_at = NOW()
+              WHERE id = $3
+              RETURNING *;
+            `, [newStatus, newActive, id]);
+            if (updRes?.rows?.length > 0) updatedProduct = updRes.rows[0];
+          }
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      const memProduct = (memoryStore.products || []).find(p => p.id === id);
+      if (memProduct) {
+        if (status) memProduct.status = status;
+        if (is_active !== undefined) memProduct.is_active = Boolean(is_active);
+        memProduct.updated_at = new Date().toISOString();
+        if (!updatedProduct) updatedProduct = memProduct;
+      }
+
+      if (!updatedProduct) {
+        return res.status(404).json({ success: false, error: 'Produit introuvable.' });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Statut du produit mis à jour par l’administrateur.',
+        data: updatedProduct
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Suppression / Désactivation d'un produit par l'administrateur
+   */
+  static async deleteProduct(req, res, next) {
+    try {
+      const { id } = req.params;
+
+      if (pool) {
+        try {
+          await query(`
+            UPDATE products
+            SET is_active = false,
+                status = 'INACTIVE',
+                updated_at = NOW()
+            WHERE id = $1;
+          `, [id]);
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      const memIdx = (memoryStore.products || []).findIndex(p => p.id === id);
+      if (memIdx !== -1) {
+        memoryStore.products[memIdx].is_active = false;
+        memoryStore.products[memIdx].status = 'INACTIVE';
+        memoryStore.products[memIdx].updated_at = new Date().toISOString();
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Produit désactivé par l’administrateur.'
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }

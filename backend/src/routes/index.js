@@ -15,6 +15,7 @@ import notificationRoutes from './notificationRoutes.js';
 import webhookRoutes from './webhookRoutes.js';
 import subscriptionRoutes from './subscriptionRoutes.js';
 import analyticsRoutes from './analyticsRoutes.js';
+import uploadRoutes from './uploadRoutes.js';
 
 const router = Router();
 
@@ -35,6 +36,7 @@ router.get('/health', async (req, res) => {
 });
 
 // Enregistrement des sous-routeurs
+router.use('/', uploadRoutes);
 router.use('/auth', authRoutes);
 router.use('/products', productRoutes);
 router.use('/merchants', merchantRoutes);

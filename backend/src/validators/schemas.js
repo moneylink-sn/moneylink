@@ -63,13 +63,32 @@ export const contributeSchema = z.object({
   note: z.string().optional()
 });
 
+export const merchantProfileSchema = z.object({
+  first_name: z.string().min(2, 'Le prénom doit comporter au moins 2 caractères').optional(),
+  last_name: z.string().min(2, 'Le nom de famille doit comporter au moins 2 caractères').optional(),
+  phone: z.string().min(8, 'Numéro de téléphone requis (+221...)').optional(),
+  whatsapp_phone: z.string().optional(),
+  business_name: z.string().min(2, 'Le nom de l’entreprise doit comporter au moins 2 caractères').optional(),
+  business_type: z.string().optional(),
+  description: z.string().optional(),
+  address: z.string().optional(),
+  quartier: z.string().optional(),
+  city: z.string().optional(),
+  country: z.string().optional(),
+  logo_url: z.string().optional()
+});
+
 export const productSchema = z.object({
   name: z.string().min(2, 'Le nom du produit est requis'),
   description: z.string().optional(),
   price: z.number().nonnegative('Le prix doit être positif'),
   stock: z.number().int().nonnegative().default(0),
   image_url: z.string().optional(),
-  category: z.string().optional()
+  category: z.string().optional(),
+  subcategory: z.string().optional(),
+  city: z.string().optional(),
+  quartier: z.string().optional(),
+  location: z.string().optional()
 });
 
 export const updateProductSchema = z.object({
@@ -79,6 +98,16 @@ export const updateProductSchema = z.object({
   stock: z.number().int().nonnegative().optional(),
   image_url: z.string().optional(),
   category: z.string().optional(),
+  subcategory: z.string().optional(),
+  city: z.string().optional(),
+  quartier: z.string().optional(),
+  location: z.string().optional(),
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'INACTIVE']).optional(),
+  is_active: z.boolean().optional()
+});
+
+export const updateProductStatusSchema = z.object({
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'INACTIVE']).optional(),
   is_active: z.boolean().optional()
 });
 

@@ -658,6 +658,7 @@ export const initialSeedData = {
       metadata: { plan: 'Premium', price: 500 },
       created_at: new Date(Date.now() - 15 * 86400000).toISOString()
     }
-  ]
+  ],
+  media_uploads: []
 };
 

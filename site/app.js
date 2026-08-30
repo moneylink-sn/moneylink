@@ -345,6 +345,7 @@ const Auth = {
 
     if (AppState.user.role === 'MERCHANT') {
       MerchantPortal.loadStats();
+      MerchantPortal.loadProfile();
       MerchantPortal.loadProducts();
       MerchantPortal.loadOrders();
     } else {
@@ -971,21 +972,245 @@ const MerchantPortal = {
       if (res.success && res.data) {
         const { merchant, wallet, metrics } = res.data;
         if (merchant) {
-          document.getElementById('merchant-shop-name').textContent = merchant.business_name;
-          document.getElementById('merchant-city-display').textContent = merchant.city || 'Dakar';
+          const shopNameEl = document.getElementById('merchant-shop-name');
+          const cityEl = document.getElementById('merchant-city-display');
+          const headerLogoEl = document.getElementById('merchant-header-logo');
+
+          if (shopNameEl) shopNameEl.textContent = merchant.business_name || 'Boutique Pro';
+          if (cityEl) cityEl.textContent = merchant.city || 'Dakar';
+          if (headerLogoEl && merchant.logo_url) headerLogoEl.src = merchant.logo_url;
         }
+
         if (metrics) {
-          document.getElementById('merchant-kpi-volume').textContent = formatFCFA(metrics.totalSalesVolumeFCFA || 0);
-          document.getElementById('merchant-kpi-pending-shipment').textContent = (metrics.pendingShipment || 0).toString();
+          const productsEl = document.getElementById('merchant-kpi-products');
+          const ordersEl = document.getElementById('merchant-kpi-orders');
+          const volumeEl = document.getElementById('merchant-kpi-volume');
+          const lowStockEl = document.getElementById('merchant-kpi-low-stock');
+
+          if (productsEl) productsEl.textContent = (metrics.totalProducts || 0).toString();
+          if (ordersEl) ordersEl.textContent = (metrics.totalOrders || 0).toString();
+          if (volumeEl) volumeEl.textContent = formatFCFA(metrics.totalSalesVolumeFCFA || 0);
+          if (lowStockEl) lowStockEl.textContent = (metrics.lowStockProducts || 0).toString();
         }
+
         if (wallet) {
-          document.getElementById('merchant-kpi-wallet-available').textContent = formatFCFA(wallet.available_balance || 0);
-          document.getElementById('merchant-kpi-wallet-locked').textContent = formatFCFA(wallet.locked_balance || 0);
+          const availEl = document.getElementById('merchant-kpi-wallet-available');
+          const lockEl = document.getElementById('merchant-kpi-wallet-locked');
+          if (availEl) availEl.textContent = formatFCFA(wallet.available_balance || 0);
+          if (lockEl) lockEl.textContent = formatFCFA(wallet.locked_balance || 0);
         }
       }
     } catch (err) {
       console.warn('Erreur KPIs marchand :', err.message);
     }
+  },
+
+  async loadProfile() {
+    try {
+      const res = await Api.get('/merchants/profile');
+      if (res.success && res.data) {
+        const { user, merchant } = res.data;
+
+        if (user) {
+          const fname = document.getElementById('merchant-prof-fname');
+          const lname = document.getElementById('merchant-prof-lname');
+          const phone = document.getElementById('merchant-prof-phone');
+          if (fname) fname.value = user.first_name || '';
+          if (lname) lname.value = user.last_name || '';
+          if (phone) phone.value = user.phone || '';
+        }
+
+        if (merchant) {
+          const bizname = document.getElementById('merchant-prof-bizname');
+          const biztype = document.getElementById('merchant-prof-biztype');
+          const desc = document.getElementById('merchant-prof-desc');
+          const addr = document.getElementById('merchant-prof-address');
+          const quart = document.getElementById('merchant-prof-quartier');
+          const city = document.getElementById('merchant-prof-city');
+          const country = document.getElementById('merchant-prof-country');
+          const whatsapp = document.getElementById('merchant-prof-whatsapp');
+          const logoUrl = document.getElementById('merchant-prof-logo-url');
+          const logoPreview = document.getElementById('merchant-profile-logo-preview');
+          const removeLogoBtn = document.getElementById('merchant-remove-logo-btn');
+
+          if (bizname) bizname.value = merchant.business_name || '';
+          if (biztype) biztype.value = merchant.business_type || 'Commerce Général';
+          if (desc) desc.value = merchant.description || '';
+          if (addr) addr.value = merchant.address || '';
+          if (quart) quart.value = merchant.quartier || '';
+          if (city) city.value = merchant.city || 'Dakar';
+          if (country) country.value = merchant.country || 'Sénégal';
+          if (whatsapp) whatsapp.value = merchant.whatsapp_phone || merchant.phone || '';
+          if (logoUrl) logoUrl.value = merchant.logo_url || '';
+
+          if (logoPreview && merchant.logo_url) {
+            logoPreview.src = merchant.logo_url;
+            if (removeLogoBtn) removeLogoBtn.style.display = 'inline-flex';
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Erreur chargement profil marchand :', err.message);
+    }
+  },
+
+  async saveProfile(payload) {
+    const saveBtn = document.getElementById('merchant-save-profile-btn');
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '💾 Enregistrement...';
+    }
+
+    try {
+      const res = await Api.put('/merchants/profile', payload);
+      if (res.success && res.data) {
+        Toast.show('Profil marchand mis à jour avec succès ! ✅');
+        if (res.data.merchant) {
+          if (AppState.user) {
+            AppState.user.merchant = res.data.merchant;
+            if (res.data.user) {
+              AppState.user.first_name = res.data.user.first_name;
+              AppState.user.last_name = res.data.user.last_name;
+            }
+            localStorage.setItem('moneylink_user', JSON.stringify(AppState.user));
+          }
+        }
+        this.loadStats();
+        Auth.updateUI();
+      }
+    } catch (err) {
+      Toast.show(err.message, 'error');
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '💾 Enregistrer mon profil';
+      }
+    }
+  },
+
+  async handleLogoUpload(file) {
+    if (!file) return;
+
+    // Validation côté client (taille et format)
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      Toast.show('Format invalide. Formats acceptés : JPG, PNG, WEBP.', 'error');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      Toast.show('Image trop volumineuse. Limite max: 5 Mo.', 'error');
+      return;
+    }
+
+    try {
+      Toast.show('Téléversement du logo en cours...', 'info');
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Data = e.target.result;
+        try {
+          const res = await Api.post('/upload', {
+            data_base64: base64Data,
+            filename: file.name,
+            mime_type: file.type
+          });
+
+          if (res.success && res.data) {
+            const uploadedUrl = res.data.url;
+            const logoInput = document.getElementById('merchant-prof-logo-url');
+            const logoPreview = document.getElementById('merchant-profile-logo-preview');
+            const headerLogo = document.getElementById('merchant-header-logo');
+            const removeBtn = document.getElementById('merchant-remove-logo-btn');
+
+            if (logoInput) logoInput.value = uploadedUrl;
+            if (logoPreview) logoPreview.src = uploadedUrl;
+            if (headerLogo) headerLogo.src = uploadedUrl;
+            if (removeBtn) removeBtn.style.display = 'inline-flex';
+
+            Toast.show('Logo téléversé avec succès ! Cliquez sur Enregistrer pour confirmer.');
+          }
+        } catch (uploadErr) {
+          Toast.show(`Échec du téléversement : ${uploadErr.message}`, 'error');
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      Toast.show(err.message, 'error');
+    }
+  },
+
+  removeLogo() {
+    const logoInput = document.getElementById('merchant-prof-logo-url');
+    const logoPreview = document.getElementById('merchant-profile-logo-preview');
+    const removeBtn = document.getElementById('merchant-remove-logo-btn');
+    const fileInput = document.getElementById('merchant-logo-file-input');
+
+    if (logoInput) logoInput.value = '';
+    if (logoPreview) logoPreview.src = 'assets/moneylink_logo_mark.svg';
+    if (removeBtn) removeBtn.style.display = 'none';
+    if (fileInput) fileInput.value = '';
+    Toast.show('Logo retiré. Cliquez sur Enregistrer pour confirmer.', 'info');
+  },
+
+  async handleProductImageUpload(file) {
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      Toast.show('Format d’image invalide. Formats acceptés : JPG, PNG, WEBP.', 'error');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      Toast.show('Image trop volumineuse. Limite max: 5 Mo.', 'error');
+      return;
+    }
+
+    try {
+      Toast.show('Téléversement de la photo en cours...', 'info');
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Data = e.target.result;
+        try {
+          const res = await Api.post('/upload', {
+            data_base64: base64Data,
+            filename: file.name,
+            mime_type: file.type
+          });
+
+          if (res.success && res.data) {
+            const uploadedUrl = res.data.url;
+            const imgInput = document.getElementById('prod-form-image');
+            const imgPreview = document.getElementById('prod-form-image-preview');
+            const removeBtn = document.getElementById('prod-form-remove-img-btn');
+
+            if (imgInput) imgInput.value = uploadedUrl;
+            if (imgPreview) imgPreview.src = uploadedUrl;
+            if (removeBtn) removeBtn.style.display = 'inline-flex';
+
+            Toast.show('Photo du produit téléversée avec succès !');
+          }
+        } catch (uploadErr) {
+          Toast.show(`Échec du téléversement : ${uploadErr.message}`, 'error');
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      Toast.show(err.message, 'error');
+    }
+  },
+
+  removeProductImage() {
+    const defaultPlaceholder = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500';
+    const imgInput = document.getElementById('prod-form-image');
+    const imgPreview = document.getElementById('prod-form-image-preview');
+    const removeBtn = document.getElementById('prod-form-remove-img-btn');
+    const fileInput = document.getElementById('prod-form-file-input');
+
+    if (imgInput) imgInput.value = defaultPlaceholder;
+    if (imgPreview) imgPreview.src = defaultPlaceholder;
+    if (removeBtn) removeBtn.style.display = 'none';
+    if (fileInput) fileInput.value = '';
   },
 
   async loadProducts() {
@@ -999,9 +1224,10 @@ const MerchantPortal = {
         if (products.length === 0) {
           container.innerHTML = `
             <div style="text-align: center; padding: 40px; color: var(--text-muted); background: var(--surface-alt); border-radius: var(--radius-md);">
-              <div style="font-size: 32px; margin-bottom: 8px;">📦</div>
-              <p>Vous n'avez pas encore ajouté de produit à votre boutique.</p>
-              <button class="btn btn-primary btn-sm" style="margin-top: 12px;" onclick="MerchantPortal.openAddProductModal()">
+              <div style="font-size: 36px; margin-bottom: 8px;">📦</div>
+              <h4 style="color: var(--secondary); font-size: 16px;">Vous n'avez pas encore ajouté de produit à votre boutique.</h4>
+              <p style="font-size: 13.5px; margin-top: 4px;">Publiez vos premiers articles pour commencer à recevoir des commandes sécurisées.</p>
+              <button class="btn btn-primary btn-sm" style="margin-top: 14px;" onclick="MerchantPortal.openAddProductModal()">
                 ➕ Ajouter mon premier produit
               </button>
             </div>
@@ -1010,52 +1236,79 @@ const MerchantPortal = {
         }
 
         container.innerHTML = `
-          <table class="merchant-products-table">
-            <thead>
-              <tr>
-                <th>Produit</th>
-                <th>Catégorie</th>
-                <th>Prix</th>
-                <th>Stock</th>
-                <th>Statut</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${products.map(p => `
+          <div style="overflow-x: auto;">
+            <table class="merchant-products-table">
+              <thead>
                 <tr>
-                  <td>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                      <img src="${escapeHTML(p.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200')}" alt="${escapeHTML(p.name)}" style="width: 40px; height: 40px; border-radius: var(--radius-sm); object-fit: cover;" />
-                      <div>
-                        <strong>${escapeHTML(p.name)}</strong>
-                      </div>
-                    </div>
-                  </td>
-                  <td>${escapeHTML(p.category || 'Général')}</td>
-                  <td><strong>${formatFCFA(p.price)}</strong></td>
-                  <td>
-                    <div class="stock-stepper">
-                      <button class="stock-stepper-btn" onclick="MerchantPortal.adjustStock('${p.id}', ${Math.max(0, p.stock - 1)})">-</button>
-                      <span class="stock-stepper-val">${p.stock}</span>
-                      <button class="stock-stepper-btn" onclick="MerchantPortal.adjustStock('${p.id}', ${p.stock + 1})">+</button>
-                    </div>
-                  </td>
-                  <td>
-                    <span class="order-badge ${p.is_active ? 'CONFIRMED' : 'DISPUTED'}">
-                      ${p.is_active ? 'Publié' : 'Désactivé'}
-                    </span>
-                  </td>
-                  <td>
-                    <div style="display: flex; gap: 6px;">
-                      <button class="btn btn-outline btn-sm" style="padding: 4px 8px;" onclick="MerchantPortal.openEditProductModal('${p.id}')">✏️</button>
-                      <button class="btn btn-outline btn-sm" style="padding: 4px 8px; color: #EF4444; border-color: #EF4444;" onclick="MerchantPortal.deleteProduct('${p.id}')">🗑️</button>
-                    </div>
-                  </td>
+                  <th>Photo &amp; Article</th>
+                  <th>Catégorie</th>
+                  <th>Prix (FCFA)</th>
+                  <th>Stock</th>
+                  <th>Lieu</th>
+                  <th>Statut</th>
+                  <th style="text-align: right;">Actions</th>
                 </tr>
-              `).join('')}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                ${products.map(p => {
+                  const isLowStock = p.stock <= 3;
+                  const isOut = p.stock === 0;
+                  const statusLabel = p.is_active ? 'Publié' : 'Désactivé';
+                  const statusBadgeClass = p.is_active ? 'CONFIRMED' : 'DISPUTED';
+
+                  return `
+                    <tr>
+                      <td>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                          <img src="${escapeHTML(p.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200')}" alt="${escapeHTML(p.name)}" style="width: 46px; height: 46px; border-radius: var(--radius-sm); object-fit: cover; border: 1px solid var(--border);" />
+                          <div>
+                            <strong style="color: var(--secondary); font-size: 14px;">${escapeHTML(p.name)}</strong>
+                            ${p.subcategory ? `<div style="font-size: 11.5px; color: var(--text-muted);">${escapeHTML(p.subcategory)}</div>` : ''}
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="product-category-tag" style="position: static; display: inline-block;">${escapeHTML(p.category || 'Général')}</span>
+                      </td>
+                      <td>
+                        <strong style="color: var(--secondary); font-size: 14.5px;">${formatFCFA(p.price)}</strong>
+                      </td>
+                      <td>
+                        <div class="stock-stepper">
+                          <button type="button" class="stock-stepper-btn" onclick="MerchantPortal.adjustStock('${p.id}', ${Math.max(0, p.stock - 1)})" title="Diminuer le stock">-</button>
+                          <span class="stock-stepper-val" style="${isLowStock ? 'color: #D97706;' : ''}">${p.stock}</span>
+                          <button type="button" class="stock-stepper-btn" onclick="MerchantPortal.adjustStock('${p.id}', ${p.stock + 1})" title="Augmenter le stock">+</button>
+                        </div>
+                        ${isOut ? '<div style="font-size: 10.5px; color: #EF4444; font-weight: 700; margin-top: 2px;">Rupture</div>' : (isLowStock ? '<div style="font-size: 10.5px; color: #D97706; font-weight: 700; margin-top: 2px;">Stock faible</div>' : '')}
+                      </td>
+                      <td>
+                        <div style="font-size: 12.5px; color: var(--text-main);">📍 ${escapeHTML(p.city || 'Dakar')}</div>
+                        ${p.quartier ? `<div style="font-size: 11px; color: var(--text-muted);">${escapeHTML(p.quartier)}</div>` : ''}
+                      </td>
+                      <td>
+                        <span class="order-badge ${statusBadgeClass}">
+                          ${statusLabel}
+                        </span>
+                      </td>
+                      <td style="text-align: right;">
+                        <div style="display: inline-flex; gap: 6px;">
+                          <button class="btn btn-outline btn-sm" style="padding: 5px 9px;" onclick="MerchantPortal.openEditProductModal('${p.id}')" title="Modifier le produit">
+                            ✏️
+                          </button>
+                          <button class="btn btn-outline btn-sm" style="padding: 5px 9px; ${p.is_active ? 'color: #D97706; border-color: #FCD34D;' : 'color: #059669; border-color: #6EE7B7;'}" onclick="MerchantPortal.toggleProductStatus('${p.id}', ${p.is_active})" title="${p.is_active ? 'Désactiver' : 'Activer'}">
+                            ${p.is_active ? '👁️' : '🔒'}
+                          </button>
+                          <button class="btn btn-outline btn-sm" style="padding: 5px 9px; color: #EF4444; border-color: #FCA5A5;" onclick="MerchantPortal.deleteProduct('${p.id}')" title="Supprimer du catalogue">
+                            🗑️
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
         `;
       }
     } catch (err) {
@@ -1105,12 +1358,18 @@ const MerchantPortal = {
                 Articles commandés : <strong>${itemsList}</strong>
               </div>
 
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 10px;">
                 <div style="font-size: 15px; font-weight: 800; color: var(--primary-dark);">
                   Total Vente : ${formatFCFA(ord.total_amount)}
                 </div>
 
-                <div style="display: flex; gap: 8px;">
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  ${ord.whatsapp_url ? `
+                    <a href="${ord.whatsapp_url}" target="_blank" rel="noopener" class="btn btn-sm" style="background: #25D366; color: #FFFFFF; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-weight: 700;">
+                      <span>💬</span> WhatsApp
+                    </a>
+                  ` : ''}
+
                   ${isPaid ? `
                     <button class="btn btn-outline btn-sm" onclick="MerchantPortal.markAsShipped('${ord.id}')">
                       🚚 Marquer Expédié
@@ -1139,7 +1398,23 @@ const MerchantPortal = {
       if (res.success) {
         Toast.show('Stock mis à jour avec succès.');
         this.loadProducts();
+        this.loadStats();
         Catalog.loadProducts(); // Sync catalogue public
+      }
+    } catch (err) {
+      Toast.show(err.message, 'error');
+    }
+  },
+
+  async toggleProductStatus(productId, currentActive) {
+    try {
+      const newActive = !currentActive;
+      const res = await Api.patch(`/merchants/products/${productId}/status`, { is_active: newActive });
+      if (res.success) {
+        Toast.show(newActive ? 'Produit activé et visible.' : 'Produit désactivé.');
+        this.loadProducts();
+        this.loadStats();
+        Catalog.loadProducts();
       }
     } catch (err) {
       Toast.show(err.message, 'error');
@@ -1183,6 +1458,23 @@ const MerchantPortal = {
     document.getElementById('prod-edit-id').value = '';
     document.getElementById('product-form-title').textContent = 'Ajouter un Produit';
     document.getElementById('merchant-product-form').reset();
+
+    const defaultImg = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500';
+    document.getElementById('prod-form-image').value = defaultImg;
+    document.getElementById('prod-form-image-preview').src = defaultImg;
+    document.getElementById('prod-form-remove-img-btn').style.display = 'none';
+    document.getElementById('prod-form-price-preview').textContent = '0 FCFA';
+
+    // Remplir ville & quartier par défaut depuis le profil marchand
+    if (AppState.user?.merchant) {
+      if (document.getElementById('prod-form-city')) {
+        document.getElementById('prod-form-city').value = AppState.user.merchant.city || 'Dakar';
+      }
+      if (document.getElementById('prod-form-quartier')) {
+        document.getElementById('prod-form-quartier').value = AppState.user.merchant.quartier || '';
+      }
+    }
+
     Modal.open('product-form-modal');
   },
 
@@ -1195,9 +1487,15 @@ const MerchantPortal = {
     document.getElementById('product-form-title').textContent = 'Modifier le Produit';
     document.getElementById('prod-form-name').value = product.name;
     document.getElementById('prod-form-category').value = product.category || 'Général';
+    document.getElementById('prod-form-subcategory').value = product.subcategory || '';
     document.getElementById('prod-form-price').value = product.price;
+    document.getElementById('prod-form-price-preview').textContent = formatFCFA(product.price);
     document.getElementById('prod-form-stock').value = product.stock;
+    document.getElementById('prod-form-city').value = product.city || 'Dakar';
+    document.getElementById('prod-form-quartier').value = product.quartier || '';
     document.getElementById('prod-form-image').value = product.image_url || '';
+    document.getElementById('prod-form-image-preview').src = product.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500';
+    document.getElementById('prod-form-remove-img-btn').style.display = product.image_url ? 'inline-flex' : 'none';
     document.getElementById('prod-form-desc').value = product.description || '';
 
     Modal.open('product-form-modal');
@@ -1210,6 +1508,7 @@ const MerchantPortal = {
       if (res.success) {
         Toast.show('Produit retiré du catalogue.');
         this.loadProducts();
+        this.loadStats();
         Catalog.loadProducts();
       }
     } catch (err) {
@@ -1332,18 +1631,74 @@ function setupFormHandlers() {
     });
   });
 
-  // 7. Formulaire Produit Marchand (Ajout / Édition)
+  // 7. Formulaire Profil Marchand
+  document.getElementById('merchant-profile-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      first_name: document.getElementById('merchant-prof-fname').value.trim(),
+      last_name: document.getElementById('merchant-prof-lname').value.trim(),
+      phone: document.getElementById('merchant-prof-phone').value.trim(),
+      whatsapp_phone: document.getElementById('merchant-prof-whatsapp').value.trim(),
+      business_name: document.getElementById('merchant-prof-bizname').value.trim(),
+      business_type: document.getElementById('merchant-prof-biztype').value,
+      description: document.getElementById('merchant-prof-desc').value.trim(),
+      address: document.getElementById('merchant-prof-address').value.trim(),
+      quartier: document.getElementById('merchant-prof-quartier').value.trim(),
+      city: document.getElementById('merchant-prof-city').value.trim(),
+      country: document.getElementById('merchant-prof-country').value.trim(),
+      logo_url: document.getElementById('merchant-prof-logo-url').value.trim()
+    };
+    await MerchantPortal.saveProfile(payload);
+  });
+
+  // Gestion de l'Upload du Logo Marchand
+  document.getElementById('merchant-logo-file-input')?.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (file) MerchantPortal.handleLogoUpload(file);
+  });
+
+  document.getElementById('merchant-remove-logo-btn')?.addEventListener('click', () => {
+    MerchantPortal.removeLogo();
+  });
+
+  // Gestion de l'Upload de l'Image Produit
+  document.getElementById('prod-form-file-input')?.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (file) MerchantPortal.handleProductImageUpload(file);
+  });
+
+  document.getElementById('prod-form-remove-img-btn')?.addEventListener('click', () => {
+    MerchantPortal.removeProductImage();
+  });
+
+  // Aperçu interactif du prix en FCFA
+  document.getElementById('prod-form-price')?.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value) || 0;
+    const previewEl = document.getElementById('prod-form-price-preview');
+    if (previewEl) previewEl.textContent = formatFCFA(val);
+  });
+
+  // 8. Formulaire Produit Marchand (Ajout / Édition)
   document.getElementById('merchant-product-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const editId = document.getElementById('prod-edit-id').value;
     const payload = {
       name: document.getElementById('prod-form-name').value.trim(),
       category: document.getElementById('prod-form-category').value,
+      subcategory: document.getElementById('prod-form-subcategory').value.trim(),
       price: parseFloat(document.getElementById('prod-form-price').value),
       stock: parseInt(document.getElementById('prod-form-stock').value, 10),
+      city: document.getElementById('prod-form-city').value.trim(),
+      quartier: document.getElementById('prod-form-quartier').value.trim(),
       image_url: document.getElementById('prod-form-image').value.trim(),
       description: document.getElementById('prod-form-desc').value.trim()
     };
+
+    const submitBtn = document.getElementById('prod-form-submit-btn');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = 'Enregistrement...';
+    }
 
     try {
       if (editId) {
@@ -1355,13 +1710,19 @@ function setupFormHandlers() {
       }
       Modal.close('product-form-modal');
       MerchantPortal.loadProducts();
+      MerchantPortal.loadStats();
       Catalog.loadProducts();
     } catch (err) {
       Toast.show(err.message, 'error');
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '🚀 Publier le produit';
+      }
     }
   });
 
-  // 8. Formulaire Validation Code OTP (Marchand)
+  // 9. Formulaire Validation Code OTP (Marchand)
   document.getElementById('validate-otp-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const orderId = document.getElementById('otp-order-id').value;
@@ -1369,7 +1730,7 @@ function setupFormHandlers() {
     await MerchantPortal.validateOtpCode(orderId, code);
   });
 
-  // 9. Formulaire Litige (Client)
+  // 10. Formulaire Litige (Client)
   document.getElementById('dispute-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const orderId = document.getElementById('dispute-order-id').value;
@@ -1388,10 +1749,11 @@ function setupFormHandlers() {
     }
   });
 
-  // 10. Boutons d'actualisation & Onglets Portails
+  // 11. Boutons d'actualisation & Onglets Portails
   document.getElementById('client-refresh-orders-btn')?.addEventListener('click', () => ClientPortal.loadOrders());
   document.getElementById('merchant-refresh-btn')?.addEventListener('click', () => {
     MerchantPortal.loadStats();
+    MerchantPortal.loadProfile();
     MerchantPortal.loadProducts();
     MerchantPortal.loadOrders();
   });
@@ -1407,6 +1769,10 @@ function setupFormHandlers() {
       document.querySelectorAll('.portal-tab-content').forEach(c => c.style.display = 'none');
       const targetContent = document.getElementById(tabTarget);
       if (targetContent) targetContent.style.display = 'block';
+
+      if (tabTarget === 'merchant-profile-tab') {
+        MerchantPortal.loadProfile();
+      }
     });
   });
 
