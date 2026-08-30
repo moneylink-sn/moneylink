@@ -840,12 +840,16 @@ export async function ensureCatalogCleanAndDeduplicated(client) {
             OR p.name ILIKE '%Pro 17881%'
             OR p.name ILIKE '%Test 178%'
             OR u.email ILIKE 'live.images%@moneylink.sn'
+            OR u.email ILIKE 'marchand.live.%@moneylink.sn'
+            OR u.email ILIKE 'prod.merchant.%@moneylink.sn'
             OR u.email ILIKE 'test.merchant%@moneylink.sn'
             OR u.email ILIKE 'fall.tech%@moneylink.sn'
             OR u.email ILIKE 'seck.tech%@moneylink.sn'
             OR u.email ILIKE 'ndiaye.tech%@moneylink.sn'
             OR u.email ILIKE 'test.instant%@moneylink.sn'
             OR u.email ILIKE 'test.journey%@moneylink.sn'
+            OR u.email ILIKE '%@moneylink-test.sn'
+            OR u.email ILIKE '%_178806%@test.sn'
           )
       `);
 
@@ -901,12 +905,16 @@ export async function ensureCatalogCleanAndDeduplicated(client) {
           JOIN users u ON m.user_id = u.id
           WHERE (
             u.email ILIKE 'live.images%@moneylink.sn'
+            OR u.email ILIKE 'marchand.live.%@moneylink.sn'
+            OR u.email ILIKE 'prod.merchant.%@moneylink.sn'
             OR u.email ILIKE 'test.merchant%@moneylink.sn'
             OR u.email ILIKE 'fall.tech%@moneylink.sn'
             OR u.email ILIKE 'seck.tech%@moneylink.sn'
             OR u.email ILIKE 'ndiaye.tech%@moneylink.sn'
             OR u.email ILIKE 'test.instant%@moneylink.sn'
             OR u.email ILIKE 'test.journey%@moneylink.sn'
+            OR u.email ILIKE '%@moneylink-test.sn'
+            OR u.email ILIKE '%_178806%@test.sn'
           )
           AND m.id NOT IN (SELECT merchant_id FROM orders WHERE status IN ('SHIPPED', 'CONFIRMED', 'DELIVERED', 'DISPUTED'))
         )
