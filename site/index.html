@@ -138,41 +138,42 @@
         <div class="escrow-preview-card">
           <div class="preview-header">
             <div class="preview-order-info">
-              <h4>Commande #ML-2026-902</h4>
-              <p>Diop Sports &amp; Sneakers • Dakar</p>
+              <div class="badge badge-emerald" style="font-size: 11px; margin-bottom: 4px; display: inline-block;">DÉMONSTRATION DU SYSTÈME</div>
+              <h4>Séquestre de Paiement Sécurisé</h4>
+              <p>Protection Acheteur &amp; Vendeur en direct</p>
             </div>
             <div class="preview-amount">
-              <div class="amount-value">45 000 FCFA</div>
-              <div class="amount-label">🔒 Sous Séquestre</div>
+              <div class="amount-value">Paiement Garanti</div>
+              <div class="amount-label">🔒 100% Sous Séquestre</div>
             </div>
           </div>
           <div class="preview-steps">
             <div class="preview-step">
               <div class="step-num active">1</div>
               <div class="step-text">
-                <h5>Fonds Verrouillés par Wave</h5>
-                <p>Montant prélevé et mis en sécurité sur MoneyLink.</p>
+                <h5>1. Verrouillage du Paiement</h5>
+                <p>Montant sécurisé via Wave ou Orange Money.</p>
               </div>
             </div>
             <div class="preview-step">
               <div class="step-num active">2</div>
               <div class="step-text">
-                <h5>Colis Expédié par le Marchand</h5>
-                <p>En cours de livraison à Dakar Plateau.</p>
+                <h5>2. Expédition &amp; Livraison</h5>
+                <p>Le commerçant expédie le colis à l'adresse indiquée.</p>
               </div>
             </div>
             <div class="preview-step">
               <div class="step-num active">3</div>
               <div class="step-text">
-                <h5>Remise du Code Secret à la Réception</h5>
-                <p>L'acheteur transmet son code OTP au livreur.</p>
+                <h5>3. Validation par Code Secret</h5>
+                <p>L'acheteur valide la réception avec son code OTP personnel.</p>
               </div>
             </div>
           </div>
           <div class="preview-code-box">
-            <div class="code-label">Code Secret de Réception Client</div>
-            <div class="code-digits">9 2 9 5 8 7</div>
-            <div class="code-help">Ne partagez ce code qu'après avoir reçu et vérifié votre colis.</div>
+            <div class="code-label">Démonstration du système OTP</div>
+            <div class="code-digits" style="letter-spacing: 10px; font-size: 26px;">• • • • • •</div>
+            <div class="code-help">Exemple visuel uniquement — aucun code réel n'est affiché publiquement.</div>
           </div>
         </div>
       </div>
@@ -691,7 +692,7 @@
       <form id="login-form" class="auth-form-content">
         <div class="form-group">
           <label class="form-label" for="login-identifier">Numéro de téléphone ou Email</label>
-          <input type="text" id="login-identifier" class="form-input" placeholder="+221770000004 ou client@moneylink.sn" required />
+          <input type="text" id="login-identifier" class="form-input" placeholder="+221 77 123 45 67 ou email@exemple.sn" required />
         </div>
         <div class="form-group">
           <label class="form-label" for="login-password">Mot de passe</label>
@@ -829,7 +830,7 @@
         </div>
         <div class="form-group">
           <label class="form-label" for="checkout-phone">Téléphone pour la livraison</label>
-          <input type="tel" id="checkout-phone" class="form-input" placeholder="+221770000000" required />
+          <input type="tel" id="checkout-phone" class="form-input" placeholder="+221 77 123 45 67" required />
         </div>
         <div class="form-group">
           <label class="form-label" for="checkout-notes">Instructions au livreur (facultatif)</label>
@@ -864,7 +865,7 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
           <div>
             <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Référence Commande</div>
-            <div id="conf-order-ref" style="font-size: 16px; font-weight: 800; color: var(--secondary); margin-top: 2px;">ML-2026-000</div>
+            <div id="conf-order-ref" style="font-size: 16px; font-weight: 800; color: var(--secondary); margin-top: 2px;">ML-...</div>
           </div>
           <div>
             <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Boutique Vendeur</div>
@@ -889,7 +890,7 @@
             <span>🚚</span> Votre Livreur
           </div>
           <div id="conf-delivery-person-info" style="font-size: 13px; color: var(--text-main); margin-top: 4px;">
-            Mamadou Diop • 📞 +221 77 890 12 34
+            En cours d'affectation...
           </div>
         </div>
 
@@ -983,7 +984,7 @@
         <input type="hidden" id="otp-order-id" />
         <div class="form-group">
           <label class="form-label" for="otp-code-input">Code Secret Client (6 chiffres)</label>
-          <input type="text" id="otp-code-input" class="form-input" placeholder="Ex: 849201" maxlength="6" style="font-size: 24px; font-weight: 800; text-align: center; letter-spacing: 6px;" required />
+          <input type="text" id="otp-code-input" class="form-input" placeholder="Ex: 123456" maxlength="6" style="font-size: 24px; font-weight: 800; text-align: center; letter-spacing: 6px;" required />
         </div>
         <button type="submit" class="btn btn-primary" style="width: 100%;">
           Valider le Code &amp; Encaisser les Fonds 💰

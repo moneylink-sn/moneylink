@@ -838,9 +838,10 @@ const ClientPortal = {
         if (orders.length === 0) {
           listContainer.innerHTML = `
             <div style="text-align: center; padding: 40px; color: var(--text-muted); background: var(--surface-alt); border-radius: var(--radius-md);">
-              <div style="font-size: 32px; margin-bottom: 8px;">📦</div>
-              <p>Vous n'avez pas encore passé de commande.</p>
-              <a href="#catalogue" class="btn btn-primary btn-sm" style="margin-top: 12px; display: inline-block;">Explorer le catalogue</a>
+              <div style="font-size: 36px; margin-bottom: 12px;">📦</div>
+              <h4 style="color: var(--secondary); margin-bottom: 6px; font-size: 16px;">Vous n'avez pas encore passé de commande.</h4>
+              <p style="font-size: 14px; margin-bottom: 18px;">Explorez notre catalogue pour découvrir les produits disponibles.</p>
+              <a href="#catalogue" class="btn btn-primary btn-sm" style="display: inline-block;">🛍️ Explorer le catalogue</a>
             </div>
           `;
           return;
@@ -863,7 +864,7 @@ const ClientPortal = {
                 <div>
                   <span class="order-num">Commande #${escapeHTML(order.order_number)}</span>
                   <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-                    Marchand : <strong>${escapeHTML(order.merchant_name || 'Boutique Partenaire')}</strong> • ${new Date(order.created_at).toLocaleDateString('fr-FR')}
+                    Marchand : <strong>${escapeHTML(order.merchant_name || 'Boutique Partenaire')}</strong>${order.merchant_city ? ` • 📍 ${escapeHTML(order.merchant_city)}` : ''} • 📅 ${new Date(order.created_at).toLocaleDateString('fr-FR')}
                   </div>
                 </div>
                 <div>
@@ -882,19 +883,21 @@ const ClientPortal = {
               <!-- Information Livreur -->
               ${order.delivery_person ? `
                 <div style="background: #F8FAFC; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; margin-top: 10px; font-size: 13px;">
-                  🚚 <strong>Livreur attribué :</strong> ${escapeHTML(order.delivery_person.first_name)} ${escapeHTML(order.delivery_person.last_name)} 
+                  🚚 <strong>Livreur :</strong> ${escapeHTML(order.delivery_person.first_name)} ${escapeHTML(order.delivery_person.last_name)}
                   (📞 <a href="tel:${escapeHTML(order.delivery_person.phone)}" style="color: var(--primary-dark); font-weight: 600;">${escapeHTML(order.delivery_person.phone)}</a>)
                 </div>
               ` : ''}
 
               <!-- Code Secret OTP -->
-              <div class="secret-code-display-box" style="margin-top: 10px;">
-                <div class="secret-code-label">🔑 Code Secret de Livraison (OTP)</div>
-                <div class="secret-code-digits">${order.delivery_code || '849201'}</div>
-                <div class="secret-code-warning">
-                  ⚠️ Communiquez ce code au livreur uniquement après vérification de votre colis.
+              ${order.delivery_code ? `
+                <div class="secret-code-display-box" style="margin-top: 10px;">
+                  <div class="secret-code-label">🔑 Code Secret de Livraison (OTP)</div>
+                  <div class="secret-code-digits">${escapeHTML(order.delivery_code)}</div>
+                  <div class="secret-code-warning">
+                    🔐 Ne communiquez votre code secret qu'après avoir reçu et vérifié votre colis.
+                  </div>
                 </div>
-              </div>
+              ` : ''}
 
               <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px;">
                 ${order.whatsapp_url ? `
