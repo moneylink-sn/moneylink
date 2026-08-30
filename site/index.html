@@ -840,41 +840,79 @@
           <input type="text" id="checkout-notes" class="form-input" placeholder="Ex: Appeler à l'arrivée" />
         </div>
 
-        <label class="form-label">Sélectionnez votre moyen de paiement Mobile Money :</label>
-        <div class="payment-methods-grid">
-          <div class="payment-method-card active" data-method="WAVE_MOCK">
-            <span style="font-size: 20px;">🌊</span>
-            <div class="payment-method-name">Wave Sénégal</div>
-            <div class="payment-method-sub">Instantané sans frais</div>
-          </div>
-          <div class="payment-method-card" data-method="OM_MOCK">
-            <span style="font-size: 20px;">🍊</span>
-            <div class="payment-method-name">Orange Money</div>
-            <div class="payment-method-sub">Code QR / OTP</div>
-          </div>
-          <div class="payment-method-card" data-method="WALLET">
-            <span style="font-size: 20px;">💳</span>
-            <div class="payment-method-name">Solde MoneyLink</div>
-            <div class="payment-method-sub" id="checkout-wallet-avail">Portefeuille</div>
-          </div>
-          <div class="payment-method-card" data-method="FREE_MOCK">
-            <span style="font-size: 20px;">🆓</span>
-            <div class="payment-method-name">Free Money</div>
-            <div class="payment-method-sub">Zone Sénégal</div>
-          </div>
+        <div style="background: rgba(0, 168, 107, 0.08); border: 1.5px dashed var(--primary); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 20px; font-size: 13px; color: var(--secondary);">
+          ℹ️ <strong>Règlement temporaire via WhatsApp</strong> : Votre commande sera enregistrée dans la base MoneyLink, votre code secret de livraison sera généré, et la discussion sera ouverte automatiquement avec le commerçant sur WhatsApp.
         </div>
 
-        <div style="background: var(--surface-alt); padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); margin-bottom: 20px;">
-          <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 800;">
-            <span>Total Débité :</span>
-            <span id="checkout-total-display" style="color: var(--primary-dark);">0 FCFA</span>
-          </div>
-        </div>
-
-        <button type="submit" id="checkout-submit-btn" class="btn btn-primary" style="width: 100%;">
-          Payer &amp; Verrouiller en Séquestre 🔒
+        <button type="submit" id="checkout-submit-btn" class="btn btn-primary" style="width: 100%; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; background: #25D366; border-color: #25D366; color: #FFFFFF;">
+          <span>💬</span>
+          <span>Commander via WhatsApp</span>
         </button>
       </form>
+    </div>
+  </div>
+
+  <!-- 3b. MODALE DE CONFIRMATION DE COMMANDE & FLUX WHATSAPP -->
+  <div id="order-confirmation-modal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 600px;">
+      <button class="modal-close-btn" data-close-modal="order-confirmation-modal">&times;</button>
+      <div style="text-align: center; margin-bottom: 20px;">
+        <div style="font-size: 48px; margin-bottom: 8px;">✅</div>
+        <h3 class="modal-title" style="color: var(--primary);">Commande créée avec succès !</h3>
+        <p class="modal-subtitle" style="color: #64748B; font-weight: 500;">
+          Statut : <span class="badge badge-gold" style="font-size: 13px;">Commande en attente de confirmation</span>
+        </p>
+      </div>
+
+      <div style="background: var(--surface-alt); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+          <div>
+            <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Référence Commande</div>
+            <div id="conf-order-ref" style="font-size: 16px; font-weight: 800; color: var(--secondary); margin-top: 2px;">ML-2026-000</div>
+          </div>
+          <div>
+            <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Boutique Vendeur</div>
+            <div id="conf-shop-name" style="font-size: 16px; font-weight: 800; color: var(--secondary); margin-top: 2px;">Boutique</div>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+          <div>
+            <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Total à Régler</div>
+            <div id="conf-order-total" style="font-size: 18px; font-weight: 800; color: var(--primary); margin-top: 2px;">0 FCFA</div>
+          </div>
+          <div>
+            <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Adresse de Livraison</div>
+            <div id="conf-order-address" style="font-size: 13px; font-weight: 600; color: var(--text-main); margin-top: 2px;">Dakar</div>
+          </div>
+        </div>
+
+        <!-- Section Livreur -->
+        <div id="conf-delivery-person-box" style="background: #FFFFFF; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin-top: 10px;">
+          <div style="font-size: 12px; font-weight: 700; color: var(--secondary); display: flex; align-items: center; gap: 6px;">
+            <span>🚚</span> Votre Livreur
+          </div>
+          <div id="conf-delivery-person-info" style="font-size: 13px; color: var(--text-main); margin-top: 4px;">
+            Mamadou Diop • 📞 +221 77 890 12 34
+          </div>
+        </div>
+
+        <!-- Code Secret de Livraison OTP -->
+        <div style="background: #001E2B; color: #FFFFFF; border-radius: var(--radius-sm); padding: 16px; margin-top: 14px; text-align: center;">
+          <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #00E59B; font-weight: 700;">🔐 Votre Code Secret de Livraison (OTP)</div>
+          <div id="conf-delivery-code" style="font-size: 28px; font-weight: 800; letter-spacing: 6px; color: #FFFFFF; margin: 8px 0;">------</div>
+          <div style="font-size: 11.5px; color: #94A3B8;">Ne communiquez ce code au livreur qu'après avoir reçu et vérifié votre marchandise.</div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <a id="conf-whatsapp-btn" href="#" target="_blank" rel="noopener" class="btn btn-primary" style="background: #25D366; border-color: #25D366; color: #FFFFFF; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 700; text-decoration: none;">
+          <span>💬</span> Continuer la discussion avec le commerçant sur WhatsApp
+        </a>
+        <button id="conf-return-catalog-btn" class="btn btn-outline" style="width: 100%;">
+          🏠 Retour au catalogue
+        </button>
+      </div>
     </div>
   </div>
 

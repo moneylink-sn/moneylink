@@ -222,12 +222,33 @@ export const initialSeedData = {
       is_active: true
     }
   ],
+  delivery_persons: [
+    {
+      id: 'dp000000-0000-0000-0000-000000000001',
+      first_name: 'Mamadou',
+      last_name: 'Diop',
+      phone: '+221778901234',
+      status: 'AVAILABLE',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    },
+    {
+      id: 'dp000000-0000-0000-0000-000000000002',
+      first_name: 'Ibrahima',
+      last_name: 'Ndiaye',
+      phone: '+221778901235',
+      status: 'AVAILABLE',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+  ],
   orders: [
     {
       id: 'o0000000-0000-0000-0000-000000000001',
       order_number: 'ML-2026-001',
       buyer_id: 'c0000000-0000-0000-0000-000000000004',
       merchant_id: 'm0000000-0000-0000-0000-000000000001',
+      delivery_person_id: 'dp000000-0000-0000-0000-000000000001',
       total_amount: 45000.00,
       escrow_amount: 45000.00,
       service_fee: 500.00,
@@ -256,6 +277,7 @@ export const initialSeedData = {
       order_number: 'ML-2026-002',
       buyer_id: 'c0000000-0000-0000-0000-000000000005',
       merchant_id: 'm0000000-0000-0000-0000-000000000002',
+      delivery_person_id: 'dp000000-0000-0000-0000-000000000002',
       total_amount: 32000.00,
       escrow_amount: 32000.00,
       service_fee: 400.00,

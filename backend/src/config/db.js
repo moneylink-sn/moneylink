@@ -175,11 +175,25 @@ export async function ensureCoreTables(client) {
       CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
       CREATE INDEX IF NOT EXISTS idx_products_is_active ON products(is_active);
 
+      CREATE TABLE IF NOT EXISTS delivery_persons (
+          id TEXT PRIMARY KEY,
+          first_name TEXT NOT NULL,
+          last_name TEXT NOT NULL,
+          phone TEXT UNIQUE NOT NULL,
+          status TEXT DEFAULT 'AVAILABLE',
+          created_at TIMESTAMPTZ,
+          updated_at TIMESTAMPTZ
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_delivery_persons_phone ON delivery_persons(phone);
+      CREATE INDEX IF NOT EXISTS idx_delivery_persons_status ON delivery_persons(status);
+
       CREATE TABLE IF NOT EXISTS orders (
           id TEXT PRIMARY KEY,
           order_number TEXT UNIQUE NOT NULL,
           buyer_id TEXT NOT NULL,
           merchant_id TEXT NOT NULL,
+          delivery_person_id TEXT,
           total_amount NUMERIC NOT NULL,
           escrow_amount NUMERIC DEFAULT 0.00,
           service_fee NUMERIC DEFAULT 0.00,
@@ -197,9 +211,12 @@ export async function ensureCoreTables(client) {
           updated_at TIMESTAMPTZ
       );
 
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_person_id TEXT;
+
       CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number);
       CREATE INDEX IF NOT EXISTS idx_orders_buyer_id ON orders(buyer_id);
       CREATE INDEX IF NOT EXISTS idx_orders_merchant_id ON orders(merchant_id);
+      CREATE INDEX IF NOT EXISTS idx_orders_delivery_person_id ON orders(delivery_person_id);
       CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
       CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
 
@@ -445,16 +462,27 @@ export async function seedTablesIfEmpty(client) {
       ]);
     }
 
+    for (const dp of (initialSeedData.delivery_persons || [])) {
+      await client.query(`
+        INSERT INTO delivery_persons (id, first_name, last_name, phone, status, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (id) DO NOTHING
+      `, [
+        dp.id, dp.first_name, dp.last_name, dp.phone, dp.status || 'AVAILABLE',
+        dp.created_at || new Date().toISOString(), dp.updated_at || new Date().toISOString()
+      ]);
+    }
+
     for (const o of (initialSeedData.orders || [])) {
       await client.query(`
         INSERT INTO orders (
-          id, order_number, buyer_id, merchant_id, total_amount, escrow_amount, service_fee,
+          id, order_number, buyer_id, merchant_id, delivery_person_id, total_amount, escrow_amount, service_fee,
           status, delivery_code, delivery_code_hash, delivery_address, delivery_phone,
           delivery_notes, paid_at, shipped_at, delivered_at, confirmed_at, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
         ON CONFLICT (id) DO NOTHING
       `, [
-        o.id, o.order_number, o.buyer_id, o.merchant_id, o.total_amount, o.escrow_amount || 0,
+        o.id, o.order_number, o.buyer_id, o.merchant_id, o.delivery_person_id || null, o.total_amount, o.escrow_amount || 0,
         o.service_fee || 0, o.status || 'PENDING_PAYMENT', o.delivery_code || null,
         o.delivery_code_hash || null, o.delivery_address || 'Dakar', o.delivery_phone || '',
         o.delivery_notes || '', o.paid_at || null, o.shipped_at || null, o.delivered_at || null,

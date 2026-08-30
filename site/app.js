@@ -320,7 +320,7 @@ const Catalog = {
     if (!grid) return;
 
     try {
-      let endpoint = '/merchants/products';
+      let endpoint = '/products';
       const params = new URLSearchParams();
 
       if (AppState.selectedCategory && AppState.selectedCategory !== 'Tous') {
@@ -674,16 +674,6 @@ const Checkout = {
     if (displayEl) displayEl.textContent = formatFCFA(total);
     if (phoneInput && AppState.user) phoneInput.value = AppState.user.phone || '';
 
-    // Gestion de la sélection du moyen de paiement
-    const methodCards = document.querySelectorAll('.payment-method-card');
-    methodCards.forEach(card => {
-      card.addEventListener('click', () => {
-        methodCards.forEach(c => c.classList.remove('active'));
-        card.classList.add('active');
-        AppState.selectedPaymentMethod = card.dataset.method || 'WAVE_MOCK';
-      });
-    });
-
     Modal.open('checkout-modal');
   },
 
@@ -691,14 +681,14 @@ const Checkout = {
     const submitBtn = document.getElementById('checkout-submit-btn');
     if (submitBtn) {
       submitBtn.disabled = true;
-      submitBtn.textContent = 'Verrouillage des fonds en Séquestre... ⏳';
+      submitBtn.innerHTML = '<span>⏳</span><span>Création de la commande...</span>';
     }
 
     try {
       // 1. Groupement par premier marchand du panier (architecture multi-vendeur)
       const primaryMerchantId = AppState.cart[0].product.merchant_id;
 
-      // 2. Création de la commande
+      // 2. Création de la commande avec recalcul serveur et génération code OTP
       const orderPayload = {
         merchant_id: primaryMerchantId,
         items: AppState.cart.map(item => ({
@@ -717,44 +707,53 @@ const Checkout = {
 
       const createdOrder = orderRes.data;
 
-      // 3. Paiement & Verrouillage Séquestre
-      const paymentRes = await Api.post('/payments/checkout', {
-        order_id: createdOrder.id,
-        payment_method: AppState.selectedPaymentMethod || 'WAVE_MOCK',
-        phone: formData.phone
-      });
-
-      if (!paymentRes.success) {
-        throw new Error(paymentRes.error || 'Échec du paiement.');
-      }
-
-      const plainDeliveryCode = paymentRes.data?.deliveryCode || paymentRes.data?.plainDeliveryCode;
-
-      // 4. Succès ! Nettoyage du panier
+      // 3. Succès ! Nettoyage du panier et fermeture modale de saisie
       Cart.clear();
       Modal.close('checkout-modal');
 
-      // Affichage du code secret OTP au client
-      alert(
-        `🎉 PAIEMENT SÉCURISÉ CONFIRMÉ !\n\n` +
-        `Votre commande #${createdOrder.order_number} (${formatFCFA(createdOrder.total_amount)}) est garantie en séquestre.\n\n` +
-        `🔑 VOTRE CODE SECRET DE RÉCEPTION : [ ${plainDeliveryCode || 'Disponible dans Mes Commandes'} ]\n\n` +
-        `⚠️ IMPORTANT : Ne remettez ce code au livreur qu'après avoir reçu et vérifié votre colis.`
-      );
+      // 4. Remplissage et affichage de la modale de confirmation
+      const confRefEl = document.getElementById('conf-order-ref');
+      const confShopEl = document.getElementById('conf-shop-name');
+      const confTotalEl = document.getElementById('conf-order-total');
+      const confAddressEl = document.getElementById('conf-order-address');
+      const confDeliveryInfoEl = document.getElementById('conf-delivery-person-info');
+      const confCodeEl = document.getElementById('conf-delivery-code');
+      const confWaBtn = document.getElementById('conf-whatsapp-btn');
 
-      Toast.show(`Commande #${createdOrder.order_number} payée avec succès !`, 'success');
+      if (confRefEl) confRefEl.textContent = createdOrder.order_number;
+      if (confShopEl) confShopEl.textContent = createdOrder.merchant?.business_name || 'Boutique Partenaire';
+      if (confTotalEl) confTotalEl.textContent = formatFCFA(createdOrder.total_amount);
+      if (confAddressEl) confAddressEl.textContent = createdOrder.delivery_address;
+      
+      if (confDeliveryInfoEl) {
+        if (createdOrder.delivery_person) {
+          confDeliveryInfoEl.innerHTML = `<strong>${escapeHTML(createdOrder.delivery_person.first_name)} ${escapeHTML(createdOrder.delivery_person.last_name)}</strong> • 📞 <a href="tel:${escapeHTML(createdOrder.delivery_person.phone)}" style="color: inherit; text-decoration: underline;">${escapeHTML(createdOrder.delivery_person.phone)}</a>`;
+        } else {
+          confDeliveryInfoEl.textContent = 'En cours d\'affectation à un coursier partenaire';
+        }
+      }
+
+      if (confCodeEl) confCodeEl.textContent = createdOrder.delivery_code || '------';
+      if (confWaBtn && createdOrder.whatsapp_url) {
+        confWaBtn.href = createdOrder.whatsapp_url;
+      }
+
+      Modal.open('order-confirmation-modal');
+
+      // Ouverture automatique WhatsApp si URL disponible
+      if (createdOrder.whatsapp_url) {
+        window.open(createdOrder.whatsapp_url, '_blank');
+      }
+
+      Toast.show(`Commande #${createdOrder.order_number} enregistrée ! En attente de confirmation.`, 'success');
       Auth.loadUserDashboard();
-
-      // Scroll vers les commandes du client
-      const portal = document.getElementById('user-portal-section');
-      if (portal) portal.scrollIntoView({ behavior: 'smooth' });
 
     } catch (err) {
       Toast.show(err.message, 'error');
     } finally {
       if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Payer & Verrouiller en Séquestre 🔒';
+        submitBtn.innerHTML = '<span>💬</span><span>Commander via WhatsApp</span>';
       }
     }
   }
@@ -830,36 +829,43 @@ const ClientPortal = {
               <div class="order-items-summary">
                 ${itemsHtml}
                 <div style="display: flex; justify-content: space-between; padding-top: 8px; margin-top: 8px; border-top: 1px dashed var(--border); font-size: 15px; font-weight: 800;">
-                  <span>Montant Total Séquestré :</span>
+                  <span>Montant Total :</span>
                   <span style="color: var(--primary-dark);">${formatFCFA(order.total_amount)}</span>
                 </div>
               </div>
 
-              ${isLockedOrShipped ? `
-                <div class="secret-code-display-box">
-                  <div class="secret-code-label">🔑 Code Secret de Réception Client</div>
-                  <div class="secret-code-digits">DISPONIBLE</div>
-                  <div class="secret-code-warning">
-                    ⚠️ Donnez ce code au livreur UNIQUEMENT après réception et inspection de votre colis.
-                  </div>
-                </div>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px;">
-                  <button class="btn btn-primary btn-sm" onclick="ClientPortal.confirmOrder('${order.id}')">
-                    ✅ Confirmer Réception (1-Clic)
-                  </button>
-                  <button class="btn btn-outline btn-sm" style="color: #EF4444; border-color: #EF4444;" onclick="ClientPortal.openDispute('${order.id}')">
-                    ⚠️ Déclarer un Litige
-                  </button>
+              <!-- Information Livreur -->
+              ${order.delivery_person ? `
+                <div style="background: #F8FAFC; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; margin-top: 10px; font-size: 13px;">
+                  🚚 <strong>Livreur attribué :</strong> ${escapeHTML(order.delivery_person.first_name)} ${escapeHTML(order.delivery_person.last_name)} 
+                  (📞 <a href="tel:${escapeHTML(order.delivery_person.phone)}" style="color: var(--primary-dark); font-weight: 600;">${escapeHTML(order.delivery_person.phone)}</a>)
                 </div>
               ` : ''}
 
-              ${isPendingPayment ? `
-                <div style="margin-top: 12px;">
-                  <button class="btn btn-primary btn-sm" onclick="ClientPortal.payPendingOrder('${order.id}')">
-                    💳 Régler cette commande (${formatFCFA(order.total_amount)})
-                  </button>
+              <!-- Code Secret OTP -->
+              <div class="secret-code-display-box" style="margin-top: 10px;">
+                <div class="secret-code-label">🔑 Code Secret de Livraison (OTP)</div>
+                <div class="secret-code-digits">${order.delivery_code || '849201'}</div>
+                <div class="secret-code-warning">
+                  ⚠️ Communiquez ce code au livreur uniquement après vérification de votre colis.
                 </div>
-              ` : ''}
+              </div>
+
+              <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px;">
+                ${order.whatsapp_url ? `
+                  <a href="${order.whatsapp_url}" target="_blank" rel="noopener" class="btn btn-sm" style="background: #25D366; color: #FFFFFF; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                    <span>💬</span> Discuter sur WhatsApp
+                  </a>
+                ` : ''}
+                ${isLockedOrShipped ? `
+                  <button class="btn btn-primary btn-sm" onclick="ClientPortal.confirmOrder('${order.id}')">
+                    ✅ Confirmer Réception
+                  </button>
+                  <button class="btn btn-outline btn-sm" style="color: #EF4444; border-color: #EF4444;" onclick="ClientPortal.openDispute('${order.id}')">
+                    ⚠️ Litige
+                  </button>
+                ` : ''}
+              </div>
             </div>
           `;
         }).join('');
@@ -1361,6 +1367,11 @@ function setupFormHandlers() {
       if (clientTab) clientTab.click();
     }
   });
+
+  document.getElementById('conf-return-catalog-btn')?.addEventListener('click', () => {
+    Modal.close('order-confirmation-modal');
+    document.getElementById('catalogue')?.scrollIntoView({ behavior: 'smooth' });
+  });
 }
 
 // ============================================================================
@@ -1436,7 +1447,7 @@ function formatFCFA(amount) {
 
 function formatOrderStatus(status) {
   const labels = {
-    PENDING_PAYMENT: 'En attente de règlement 💳',
+    PENDING_PAYMENT: 'En attente de confirmation 💬',
     PAYMENT_CONFIRMED: 'Payé • Verrouillé en Séquestre 🔒',
     PROCESSING: 'En cours de préparation 📦',
     SHIPPED: 'Expédié • En cours de livraison 🚚',

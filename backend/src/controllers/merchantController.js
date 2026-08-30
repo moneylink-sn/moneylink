@@ -143,7 +143,10 @@ export class MerchantController {
         }
       }
 
-      let memProds = memoryStore.products.filter(p => p.is_active);
+      const activeMerchants = memoryStore.merchants.filter(m => m.status === 'ACTIVE');
+      const activeMerchantIds = new Set(activeMerchants.map(m => m.id));
+
+      let memProds = memoryStore.products.filter(p => p.is_active && activeMerchantIds.has(p.merchant_id));
 
       if (merchant_id) {
         memProds = memProds.filter(p => p.merchant_id === merchant_id);
@@ -157,7 +160,7 @@ export class MerchantController {
       }
 
       const products = memProds.map(p => {
-        const m = memoryStore.merchants.find(merchant => merchant.id === p.merchant_id);
+        const m = activeMerchants.find(merchant => merchant.id === p.merchant_id);
         return {
           ...p,
           merchant_name: m?.business_name || 'Commerçant MoneyLink',
@@ -172,6 +175,64 @@ export class MerchantController {
         success: true,
         count: products.length,
         data: products
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Détail d'un produit public par ID
+   */
+  static async getProductById(req, res, next) {
+    try {
+      const { id } = req.params;
+      if (pool) {
+        try {
+          const sql = `
+            SELECT p.*,
+                   m.business_name AS merchant_name,
+                   m.city AS merchant_city,
+                   m.phone AS merchant_phone,
+                   m.logo_url AS merchant_logo,
+                   m.is_verified AS merchant_is_verified
+            FROM products p
+            JOIN merchants m ON p.merchant_id = m.id
+            WHERE p.id = $1 AND p.is_active = true AND m.status = 'ACTIVE'
+            LIMIT 1;
+          `;
+          const resDb = await query(sql, [id]);
+          if (resDb?.rows?.length > 0) {
+            return res.status(200).json({
+              success: true,
+              data: resDb.rows[0]
+            });
+          }
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      const p = memoryStore.products.find(item => item.id === id && item.is_active);
+      if (!p) {
+        return res.status(404).json({ success: false, error: 'Produit introuvable ou indisponible.' });
+      }
+
+      const m = memoryStore.merchants.find(merchant => merchant.id === p.merchant_id && merchant.status === 'ACTIVE');
+      if (!m) {
+        return res.status(404).json({ success: false, error: 'Boutique introuvable ou indisponible.' });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          ...p,
+          merchant_name: m.business_name || 'Commerçant MoneyLink',
+          merchant_city: m.city || 'Dakar',
+          merchant_phone: m.phone || '',
+          merchant_logo: m.logo_url || '',
+          merchant_is_verified: m.is_verified ?? false
+        }
       });
     } catch (err) {
       next(err);

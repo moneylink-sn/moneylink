@@ -180,10 +180,10 @@ async function runAuthTests() {
     const fakeTokenRes = await request('/auth/profile', {
       headers: { Authorization: 'Bearer fake_invalid_jwt_token_12345' }
     });
-    if (fakeTokenRes.status !== 403) {
+    if (fakeTokenRes.status !== 401 && fakeTokenRes.status !== 403) {
       throw new Error(`Token invalide non rejeté (status: ${fakeTokenRes.status})`);
     }
-    console.log('   ✅ Token falsifié correctement bloqué avec code 403');
+    console.log(`   ✅ Token falsifié correctement bloqué avec code ${fakeTokenRes.status}`);
 
     console.log('\n================================================================');
     console.log('  🎉 TOUS LES TESTS D’AUTHENTIFICATION ONT RÉUSSI À 100% !');

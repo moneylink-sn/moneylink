@@ -54,9 +54,12 @@ export class EscrowService {
     const serviceFee = Math.round((totalAmount * feePercent) / 100);
     const escrowAmount = parseFloat(totalAmount);
 
-    // Génération du code de livraison
-    const plainDeliveryCode = this.generateDeliveryCode();
-    const deliveryCodeHash = await bcrypt.hash(plainDeliveryCode, 10);
+    // Conserve le code de livraison existant s'il a déjà été généré lors de la commande, sinon en génère un nouveau
+    const plainDeliveryCode = order.delivery_code || this.generateDeliveryCode();
+    let deliveryCodeHash = order.delivery_code_hash;
+    if (!deliveryCodeHash) {
+      deliveryCodeHash = await bcrypt.hash(plainDeliveryCode, 10);
+    }
     const txnId = uuidv4();
     const txnReference = reference || `TXN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const nowIso = new Date().toISOString();

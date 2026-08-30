@@ -29,13 +29,18 @@ export function AuthProvider({ children }) {
       }
 
       if (data.success && data.data) {
-        if (data.data.user.role !== 'ADMIN') {
-          throw new Error('Accès réservé aux administrateurs autorisés.');
+        const user = data.data.user;
+        const isSuperAdminId = user.id === 'a0000000-0000-0000-0000-000000000001';
+        const isSuperAdminEmail = user.email && user.email.toLowerCase() === 'admin@moneylink.sn';
+        const isSuperAdminPhone = user.phone && user.phone.includes('770000001');
+
+        if (user.role !== 'ADMIN' || (!isSuperAdminId && !isSuperAdminEmail && !isSuperAdminPhone)) {
+          throw new Error('Accès strictement interdit. La console d’administration est réservée au Super Administrateur (Codé Samb).');
         }
 
-        setAdminUser(data.data.user);
+        setAdminUser(user);
         setToken(data.data.token);
-        localStorage.setItem('moneylink_admin_user', JSON.stringify(data.data.user));
+        localStorage.setItem('moneylink_admin_user', JSON.stringify(user));
         localStorage.setItem('moneylink_admin_token', data.data.token);
         setLoading(false);
         return { success: true };

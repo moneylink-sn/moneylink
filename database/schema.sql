@@ -22,6 +22,7 @@ DROP TABLE IF EXISTS subscriptions CASCADE;
 DROP TABLE IF EXISTS transactions CASCADE;
 DROP TABLE IF EXISTS order_items CASCADE;
 DROP TABLE IF EXISTS orders CASCADE;
+DROP TABLE IF EXISTS delivery_persons CASCADE;
 DROP TABLE IF EXISTS products CASCADE;
 DROP TABLE IF EXISTS merchants CASCADE;
 DROP TABLE IF EXISTS wallets CASCADE;
@@ -115,13 +116,30 @@ CREATE INDEX idx_products_category ON products(category);
 CREATE INDEX idx_products_is_active ON products(is_active);
 
 -- ----------------------------------------------------------------------------
--- 5. TABLE : ORDERS (Commandes & Cycle de Séquestre Escrow)
+-- 5. TABLE : DELIVERY_PERSONS (Livreurs & Coursiers Partenaires)
+-- ----------------------------------------------------------------------------
+CREATE TABLE delivery_persons (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    phone VARCHAR(30) UNIQUE NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE' CHECK (status IN ('AVAILABLE', 'BUSY', 'INACTIVE')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_delivery_persons_phone ON delivery_persons(phone);
+CREATE INDEX idx_delivery_persons_status ON delivery_persons(status);
+
+-- ----------------------------------------------------------------------------
+-- 6. TABLE : ORDERS (Commandes & Cycle de Séquestre Escrow)
 -- ----------------------------------------------------------------------------
 CREATE TABLE orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_number VARCHAR(50) UNIQUE NOT NULL, -- Ex: ML-20260824-001
     buyer_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     merchant_id UUID NOT NULL REFERENCES merchants(id) ON DELETE RESTRICT,
+    delivery_person_id UUID REFERENCES delivery_persons(id) ON DELETE SET NULL,
     total_amount NUMERIC(14, 2) NOT NULL CHECK (total_amount > 0),
     escrow_amount NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
     service_fee NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
@@ -153,6 +171,7 @@ CREATE TABLE orders (
 CREATE INDEX idx_orders_order_number ON orders(order_number);
 CREATE INDEX idx_orders_buyer_id ON orders(buyer_id);
 CREATE INDEX idx_orders_merchant_id ON orders(merchant_id);
+CREATE INDEX idx_orders_delivery_person_id ON orders(delivery_person_id);
 CREATE INDEX idx_orders_status ON orders(status);
 CREATE INDEX idx_orders_created_at ON orders(created_at DESC);
 
@@ -446,6 +465,7 @@ CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE 
 CREATE TRIGGER trg_wallets_updated_at BEFORE UPDATE ON wallets FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 CREATE TRIGGER trg_merchants_updated_at BEFORE UPDATE ON merchants FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 CREATE TRIGGER trg_products_updated_at BEFORE UPDATE ON products FOR EACH ROW EXECUTE FUNCTION update_timestamp();
+CREATE TRIGGER trg_delivery_persons_updated_at BEFORE UPDATE ON delivery_persons FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 CREATE TRIGGER trg_orders_updated_at BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 CREATE TRIGGER trg_subscriptions_updated_at BEFORE UPDATE ON subscriptions FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 CREATE TRIGGER trg_savings_goals_updated_at BEFORE UPDATE ON savings_goals FOR EACH ROW EXECUTE FUNCTION update_timestamp();

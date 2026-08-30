@@ -324,4 +324,33 @@ export class AdminController {
       return res.status(400).json({ success: false, error: err.message });
     }
   }
+
+  /**
+   * Liste des livreurs enregistrés
+   */
+  static async listDeliveryPersons(req, res, next) {
+    try {
+      if (pool) {
+        try {
+          const dpRes = await query('SELECT * FROM delivery_persons ORDER BY created_at DESC');
+          if (dpRes?.rows) {
+            return res.status(200).json({
+              success: true,
+              data: dpRes.rows
+            });
+          }
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      const deliveryPersons = memoryStore.delivery_persons || [];
+      return res.status(200).json({
+        success: true,
+        data: deliveryPersons
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }

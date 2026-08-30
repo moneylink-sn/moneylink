@@ -85,11 +85,22 @@ CREATE TABLE products (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE delivery_persons (
+    id TEXT PRIMARY KEY,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    phone TEXT UNIQUE NOT NULL,
+    status TEXT NOT NULL DEFAULT 'AVAILABLE',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE orders (
     id TEXT PRIMARY KEY,
     order_number TEXT UNIQUE NOT NULL,
     buyer_id TEXT NOT NULL REFERENCES users(id),
     merchant_id TEXT NOT NULL REFERENCES merchants(id),
+    delivery_person_id TEXT REFERENCES delivery_persons(id),
     total_amount REAL NOT NULL CHECK (total_amount > 0),
     escrow_amount REAL NOT NULL DEFAULT 0.0,
     service_fee REAL NOT NULL DEFAULT 0.0,

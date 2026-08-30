@@ -1,14 +1,37 @@
 /**
- * MoneyLink — OrderController (Commandes & Cycle Escrow)
- * Prise en charge PostgreSQL avec transactions ACID et fallback mémoire
+ * MoneyLink — OrderController (Commandes, Livraisons & Flux WhatsApp Sécurisé)
+ * Prise en charge PostgreSQL avec transactions ACID, contrôle de stock, et fallback mémoire
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcryptjs';
 import { memoryStore, query, withTransaction, pool } from '../config/db.js';
 import { EscrowService } from '../services/escrowService.js';
 import { notificationService } from '../services/notificationService.js';
 
 export class OrderController {
+  /**
+   * Helper de génération de message WhatsApp formaté
+   */
+  static generateWhatsAppMessage({ orderNumber, items, totalAmount, buyerName, buyerPhone, deliveryAddress }) {
+    let itemsText = items.map(item => `${item.product_name} × ${item.quantity} = ${item.total_price.toLocaleString('fr-FR')} FCFA`).join('\n');
+    
+    return `Bonjour, je souhaite passer une commande sur MoneyLink.
+
+🛍️ COMMANDE
+${itemsText}
+
+💰 Total : ${totalAmount.toLocaleString('fr-FR')} FCFA
+👤 Client : ${buyerName}
+📞 Téléphone : ${buyerPhone}
+📍 Adresse de livraison :
+${deliveryAddress}
+🆔 Référence commande :
+${orderNumber}
+
+Je souhaite confirmer la commande, le prix et les modalités de livraison avec le commerçant.`;
+  }
+
   /**
    * Création d'une nouvelle commande par un acheteur
    */
@@ -17,48 +40,74 @@ export class OrderController {
       const buyerId = req.user.id;
       const { merchant_id, items, delivery_address, delivery_phone, delivery_notes } = req.body;
 
-      if (!items || items.length === 0) {
+      if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ success: false, error: 'Le panier de commande est vide.' });
       }
 
+      if (!delivery_address || !delivery_address.trim()) {
+        return res.status(400).json({ success: false, error: 'L’adresse de livraison est requise.' });
+      }
+
+      // 1. Récupération & vérification du commerçant
       let merchant = null;
       let availableProducts = [];
+      let assignedDeliveryPerson = null;
 
       if (pool) {
         try {
-          const mRes = await query('SELECT * FROM merchants WHERE id = $1 LIMIT 1', [merchant_id]);
+          const mRes = await query('SELECT * FROM merchants WHERE id = $1 AND status = \'ACTIVE\' LIMIT 1', [merchant_id]);
           if (mRes?.rows?.length > 0) merchant = mRes.rows[0];
 
-          const pRes = await query('SELECT * FROM products WHERE merchant_id = $1', [merchant_id]);
+          const pRes = await query('SELECT * FROM products WHERE merchant_id = $1 AND is_active = true', [merchant_id]);
           if (pRes?.rows?.length > 0) availableProducts = pRes.rows;
+
+          // Recherche d'un livreur disponible
+          const dpRes = await query('SELECT * FROM delivery_persons WHERE status = \'AVAILABLE\' LIMIT 1');
+          if (dpRes?.rows?.length > 0) assignedDeliveryPerson = dpRes.rows[0];
         } catch (dbErr) {
           if (process.env.NODE_ENV === 'production') throw dbErr;
         }
       }
 
       if (!merchant) {
-        merchant = memoryStore.merchants.find(m => m.id === merchant_id);
+        merchant = memoryStore.merchants.find(m => m.id === merchant_id && m.status === 'ACTIVE');
       }
       if (!merchant) {
-        return res.status(404).json({ success: false, error: 'Commerçant introuvable.' });
+        return res.status(404).json({ success: false, error: 'Commerçant introuvable ou inactif.' });
       }
 
       if (availableProducts.length === 0) {
-        availableProducts = memoryStore.products.filter(p => p.merchant_id === merchant_id);
+        availableProducts = memoryStore.products.filter(p => p.merchant_id === merchant_id && p.is_active);
       }
 
-      // Calcul total et validation des produits
+      if (!assignedDeliveryPerson && memoryStore.delivery_persons) {
+        assignedDeliveryPerson = memoryStore.delivery_persons.find(dp => dp.status === 'AVAILABLE') || null;
+      }
+
+      // 2. Contrôle de stock et recalcul des prix STRICTEMENT côté serveur
       let totalAmount = 0;
       const orderItems = [];
 
       for (const item of items) {
-        const product = availableProducts.find(p => p.id === item.product_id);
-        if (!product) {
-          return res.status(400).json({ success: false, error: `Produit ID ${item.product_id} non trouvé chez ce marchand.` });
+        const quantity = parseInt(item.quantity, 10);
+        if (isNaN(quantity) || quantity <= 0) {
+          return res.status(400).json({ success: false, error: 'Quantité invalide (doit être > 0).' });
         }
 
-        const quantity = parseInt(item.quantity, 10) || 1;
-        const lineTotal = parseFloat(product.price) * quantity;
+        const product = availableProducts.find(p => p.id === item.product_id);
+        if (!product) {
+          return res.status(400).json({ success: false, error: `Produit ID ${item.product_id} non trouvé ou inactif chez ce marchand.` });
+        }
+
+        if (quantity > product.stock) {
+          return res.status(400).json({
+            success: false,
+            error: `Stock insuffisant pour "${product.name}". Disponible : ${product.stock}, demandé : ${quantity}.`
+          });
+        }
+
+        const unitPrice = parseFloat(product.price);
+        const lineTotal = unitPrice * quantity;
         totalAmount += lineTotal;
 
         orderItems.push({
@@ -66,42 +115,83 @@ export class OrderController {
           product_id: product.id,
           product_name: product.name,
           quantity,
-          unit_price: parseFloat(product.price),
+          unit_price: unitPrice,
           total_price: lineTotal
         });
       }
 
+      // 3. Génération référence et code de livraison OTP
       const orderId = uuidv4();
       const orderNumber = `ML-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const plainDeliveryCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const deliveryCodeHash = await bcrypt.hash(plainDeliveryCode, 10);
       const nowIso = new Date().toISOString();
+
+      const buyerName = `${req.user.first_name} ${req.user.last_name}`;
+      const buyerPhone = delivery_phone || req.user.phone;
+      const finalAddress = delivery_address.trim();
+
+      // 4. Génération message & lien WhatsApp Commerçant (isolation du numéro admin)
+      const merchantPhone = merchant.phone || '+221770000002';
+      const cleanMerchantPhone = merchantPhone.replace(/[^0-9]/g, '');
+      const whatsappMessage = OrderController.generateWhatsAppMessage({
+        orderNumber,
+        items: orderItems,
+        totalAmount,
+        buyerName,
+        buyerPhone,
+        deliveryAddress: finalAddress
+      });
+      const whatsappUrl = `https://wa.me/${cleanMerchantPhone}?text=${encodeURIComponent(whatsappMessage)}`;
 
       let createdOrder = {
         id: orderId,
         order_number: orderNumber,
         buyer_id: buyerId,
         merchant_id,
+        delivery_person_id: assignedDeliveryPerson?.id || null,
         total_amount: totalAmount,
         escrow_amount: 0.00,
         service_fee: 0.00,
         status: 'PENDING_PAYMENT',
-        delivery_address: delivery_address || 'Dakar',
-        delivery_phone: delivery_phone || req.user.phone,
+        delivery_code: plainDeliveryCode,
+        delivery_code_hash: deliveryCodeHash,
+        delivery_address: finalAddress,
+        delivery_phone: buyerPhone,
         delivery_notes: delivery_notes || '',
         items: orderItems,
+        merchant: {
+          id: merchant.id,
+          business_name: merchant.business_name,
+          phone: merchant.phone,
+          city: merchant.city,
+          logo_url: merchant.logo_url,
+          is_verified: merchant.is_verified
+        },
+        delivery_person: assignedDeliveryPerson ? {
+          id: assignedDeliveryPerson.id,
+          first_name: assignedDeliveryPerson.first_name,
+          last_name: assignedDeliveryPerson.last_name,
+          phone: assignedDeliveryPerson.phone,
+          status: assignedDeliveryPerson.status
+        } : null,
+        whatsapp_message: whatsappMessage,
+        whatsapp_url: whatsappUrl,
         created_at: nowIso,
         updated_at: nowIso
       };
 
+      // 5. Enregistrement PostgreSQL dans une transaction ACID
       if (pool) {
         try {
           await withTransaction(async (client) => {
             if (client) {
               const orderSql = `
                 INSERT INTO orders (
-                  id, order_number, buyer_id, merchant_id, total_amount, escrow_amount,
-                  service_fee, status, delivery_address, delivery_phone, delivery_notes,
+                  id, order_number, buyer_id, merchant_id, delivery_person_id, total_amount, escrow_amount,
+                  service_fee, status, delivery_code, delivery_code_hash, delivery_address, delivery_phone, delivery_notes,
                   created_at, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, 0.00, 0.00, 'PENDING_PAYMENT', $6, $7, $8, NOW(), NOW())
+                ) VALUES ($1, $2, $3, $4, $5, $6, 0.00, 0.00, 'PENDING_PAYMENT', $7, $8, $9, $10, $11, NOW(), NOW())
                 RETURNING *;
               `;
               const ordRes = await client.query(orderSql, [
@@ -109,13 +199,24 @@ export class OrderController {
                 orderNumber,
                 buyerId,
                 merchant_id,
+                assignedDeliveryPerson?.id || null,
                 totalAmount,
-                delivery_address || 'Dakar',
-                delivery_phone || req.user.phone,
+                plainDeliveryCode,
+                deliveryCodeHash,
+                finalAddress,
+                buyerPhone,
                 delivery_notes || ''
               ]);
               if (ordRes.rows.length > 0) {
-                createdOrder = { ...ordRes.rows[0], items: orderItems };
+                createdOrder = {
+                  ...ordRes.rows[0],
+                  items: orderItems,
+                  delivery_code: plainDeliveryCode,
+                  merchant: createdOrder.merchant,
+                  delivery_person: createdOrder.delivery_person,
+                  whatsapp_message: whatsappMessage,
+                  whatsapp_url: whatsappUrl
+                };
               }
 
               for (const itm of orderItems) {
@@ -136,9 +237,17 @@ export class OrderController {
         memoryStore.orders.push(createdOrder);
       }
 
+      notificationService.sendNotification({
+        userId: merchant.user_id,
+        title: 'Nouvelle Commande Reçue ! 🛍️',
+        message: `Commande #${orderNumber} (${totalAmount.toLocaleString('fr-FR')} FCFA) passée par ${buyerName}. En attente de confirmation WhatsApp.`,
+        type: 'ORDER_STATUS',
+        payload: { orderId, orderNumber }
+      });
+
       return res.status(201).json({
         success: true,
-        message: 'Commande initiée. Prête pour le règlement sécurisé.',
+        message: 'Commande enregistrée avec succès. Prête pour finalisation sur WhatsApp.',
         data: createdOrder
       });
     } catch (err) {
@@ -163,20 +272,28 @@ export class OrderController {
 
           if (userRole === 'MERCHANT') {
             sql = `
-              SELECT o.*, m.business_name AS merchant_name, (u.first_name || ' ' || u.last_name) AS buyer_name
+              SELECT o.*,
+                     m.business_name AS merchant_name, m.phone AS merchant_phone, m.city AS merchant_city, m.logo_url AS merchant_logo,
+                     (u.first_name || ' ' || u.last_name) AS buyer_name, u.phone AS buyer_phone,
+                     dp.first_name AS delivery_person_first_name, dp.last_name AS delivery_person_last_name, dp.phone AS delivery_person_phone
               FROM orders o
               JOIN merchants m ON o.merchant_id = m.id
               JOIN users u ON o.buyer_id = u.id
+              LEFT JOIN delivery_persons dp ON o.delivery_person_id = dp.id
               WHERE m.user_id = $1
               ORDER BY o.created_at DESC;
             `;
             params = [userId];
           } else {
             sql = `
-              SELECT o.*, m.business_name AS merchant_name, (u.first_name || ' ' || u.last_name) AS buyer_name
+              SELECT o.*,
+                     m.business_name AS merchant_name, m.phone AS merchant_phone, m.city AS merchant_city, m.logo_url AS merchant_logo,
+                     (u.first_name || ' ' || u.last_name) AS buyer_name, u.phone AS buyer_phone,
+                     dp.first_name AS delivery_person_first_name, dp.last_name AS delivery_person_last_name, dp.phone AS delivery_person_phone
               FROM orders o
               JOIN merchants m ON o.merchant_id = m.id
               JOIN users u ON o.buyer_id = u.id
+              LEFT JOIN delivery_persons dp ON o.delivery_person_id = dp.id
               WHERE o.buyer_id = $1
               ORDER BY o.created_at DESC;
             `;
@@ -189,6 +306,23 @@ export class OrderController {
             for (const ord of orders) {
               const itemsRes = await query('SELECT * FROM order_items WHERE order_id = $1', [ord.id]);
               ord.items = itemsRes?.rows || [];
+
+              if (ord.delivery_person_first_name) {
+                ord.delivery_person = {
+                  id: ord.delivery_person_id,
+                  first_name: ord.delivery_person_first_name,
+                  last_name: ord.delivery_person_last_name,
+                  phone: ord.delivery_person_phone
+                };
+              } else {
+                ord.delivery_person = null;
+              }
+
+              // Génération WhatsApp URL pour continuer la discussion
+              if (ord.merchant_phone) {
+                const cleanPhone = ord.merchant_phone.replace(/[^0-9]/g, '');
+                ord.whatsapp_url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Bonjour, je souhaite échanger concernant ma commande ${ord.order_number}.`)}`;
+              }
             }
             return res.status(200).json({
               success: true,
@@ -214,10 +348,22 @@ export class OrderController {
       orders = memOrders.map(order => {
         const merchant = memoryStore.merchants.find(m => m.id === order.merchant_id);
         const buyer = memoryStore.users.find(u => u.id === order.buyer_id);
+        const dp = (memoryStore.delivery_persons || []).find(d => d.id === order.delivery_person_id);
+        const cleanPhone = (merchant?.phone || '').replace(/[^0-9]/g, '');
+
         return {
           ...order,
           merchant_name: merchant?.business_name || 'Commerçant',
-          buyer_name: buyer ? `${buyer.first_name} ${buyer.last_name}` : 'Client'
+          merchant_phone: merchant?.phone || '',
+          buyer_name: buyer ? `${buyer.first_name} ${buyer.last_name}` : 'Client',
+          delivery_person: dp ? {
+            id: dp.id,
+            first_name: dp.first_name,
+            last_name: dp.last_name,
+            phone: dp.phone,
+            status: dp.status
+          } : null,
+          whatsapp_url: cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Bonjour, je souhaite échanger concernant ma commande ${order.order_number}.`)}` : null
         };
       });
 
@@ -242,11 +388,13 @@ export class OrderController {
         try {
           const ordRes = await query(`
             SELECT o.*,
-                   m.business_name AS merchant_name, m.city AS merchant_city, m.phone AS merchant_phone, m.logo_url AS merchant_logo,
-                   u.id AS buyer_user_id, u.first_name AS buyer_first_name, u.last_name AS buyer_last_name, u.phone AS buyer_phone
+                   m.business_name AS merchant_name, m.city AS merchant_city, m.phone AS merchant_phone, m.logo_url AS merchant_logo, m.is_verified AS merchant_is_verified,
+                   u.id AS buyer_user_id, u.first_name AS buyer_first_name, u.last_name AS buyer_last_name, u.phone AS buyer_phone,
+                   dp.first_name AS delivery_person_first_name, dp.last_name AS delivery_person_last_name, dp.phone AS delivery_person_phone, dp.status AS delivery_person_status
             FROM orders o
             JOIN merchants m ON o.merchant_id = m.id
             JOIN users u ON o.buyer_id = u.id
+            LEFT JOIN delivery_persons dp ON o.delivery_person_id = dp.id
             WHERE o.id = $1 OR o.order_number = $1
             LIMIT 1;
           `, [id]);
@@ -256,6 +404,8 @@ export class OrderController {
             const itemsRes = await query('SELECT * FROM order_items WHERE order_id = $1', [raw.id]);
             const disputeRes = await query('SELECT * FROM disputes WHERE order_id = $1 LIMIT 1', [raw.id]);
 
+            const cleanPhone = (raw.merchant_phone || '').replace(/[^0-9]/g, '');
+
             order = {
               ...raw,
               items: itemsRes?.rows || [],
@@ -264,7 +414,8 @@ export class OrderController {
                 business_name: raw.merchant_name,
                 city: raw.merchant_city,
                 phone: raw.merchant_phone,
-                logo_url: raw.merchant_logo
+                logo_url: raw.merchant_logo,
+                is_verified: raw.merchant_is_verified
               },
               buyer: {
                 id: raw.buyer_user_id,
@@ -272,6 +423,14 @@ export class OrderController {
                 last_name: raw.buyer_last_name,
                 phone: raw.buyer_phone
               },
+              delivery_person: raw.delivery_person_first_name ? {
+                id: raw.delivery_person_id,
+                first_name: raw.delivery_person_first_name,
+                last_name: raw.delivery_person_last_name,
+                phone: raw.delivery_person_phone,
+                status: raw.delivery_person_status
+              } : null,
+              whatsapp_url: cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Bonjour, je souhaite échanger concernant ma commande ${raw.order_number}.`)}` : null,
               dispute: disputeRes?.rows?.[0] || null
             };
           }
@@ -289,16 +448,33 @@ export class OrderController {
         const merchant = memoryStore.merchants.find(m => m.id === memOrder.merchant_id);
         const buyer = memoryStore.users.find(u => u.id === memOrder.buyer_id);
         const dispute = memoryStore.disputes.find(d => d.order_id === memOrder.id);
+        const dp = (memoryStore.delivery_persons || []).find(d => d.id === memOrder.delivery_person_id);
+        const cleanPhone = (merchant?.phone || '').replace(/[^0-9]/g, '');
 
         order = {
           ...memOrder,
-          merchant,
+          merchant: merchant ? {
+            id: merchant.id,
+            business_name: merchant.business_name,
+            city: merchant.city,
+            phone: merchant.phone,
+            logo_url: merchant.logo_url,
+            is_verified: merchant.is_verified
+          } : null,
           buyer: {
             id: buyer?.id,
             first_name: buyer?.first_name,
             last_name: buyer?.last_name,
             phone: buyer?.phone
           },
+          delivery_person: dp ? {
+            id: dp.id,
+            first_name: dp.first_name,
+            last_name: dp.last_name,
+            phone: dp.phone,
+            status: dp.status
+          } : null,
+          whatsapp_url: cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Bonjour, je souhaite échanger concernant ma commande ${memOrder.order_number}.`)}` : null,
           dispute
         };
       }
@@ -351,8 +527,8 @@ export class OrderController {
       if (!existingOrder) existingOrder = memoryStore.orders.find(o => o.id === id);
       if (!existingOrder) return res.status(404).json({ success: false, error: 'Commande introuvable.' });
 
-      // Contrôle d'accès : Seul le marchand, l'acheteur ou un administrateur peuvent modifier le statut
-      if (req.user.role !== 'ADMIN' && existingOrder.buyer_id !== req.user.id) {
+      // Contrôle d'accès : Seul le marchand ou un administrateur peuvent marquer comme expédiée
+      if (req.user.role !== 'ADMIN') {
         let isMerchantOwner = false;
         if (pool) {
           try {
@@ -415,7 +591,7 @@ export class OrderController {
   }
 
   /**
-   * Validation de la livraison via le Code Secret OTP (Remis par l'acheteur au vendeur)
+   * Validation de la livraison via le Code Secret OTP (Remis par l'acheteur au vendeur / livreur)
    */
   static async validateDeliveryCode(req, res, next) {
     try {
@@ -472,7 +648,6 @@ export class OrderController {
       return res.status(400).json({ success: false, error: err.message });
     }
   }
-
 
   /**
    * Confirmation directe 1-clic par l'acheteur

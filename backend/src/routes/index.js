@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { checkDbHealth } from '../config/db.js';
 import authRoutes from './authRoutes.js';
 import merchantRoutes from './merchantRoutes.js';
+import productRoutes from './productRoutes.js';
 import orderRoutes from './orderRoutes.js';
 import paymentRoutes from './paymentRoutes.js';
 import savingsRoutes from './savingsRoutes.js';
@@ -35,6 +36,7 @@ router.get('/health', async (req, res) => {
 
 // Enregistrement des sous-routeurs
 router.use('/auth', authRoutes);
+router.use('/products', productRoutes);
 router.use('/merchants', merchantRoutes);
 router.use('/orders', orderRoutes);
 router.use('/payments', paymentRoutes);
