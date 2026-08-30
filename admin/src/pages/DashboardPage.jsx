@@ -7,7 +7,10 @@ import {
   AlertTriangle,
   PiggyBank,
   ShieldCheck,
-  TrendingUp
+  TrendingUp,
+  Eye,
+  MessageCircle,
+  Activity
 } from 'lucide-react';
 import { StatCard } from '../components/StatCard';
 import { DisputeModal } from '../components/DisputeModal';
@@ -37,6 +40,8 @@ export function DashboardPage() {
 
   useEffect(() => {
     fetchStats();
+    const interval = setInterval(fetchStats, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleResolveDispute = async (id, resolution, notes) => {
@@ -68,25 +73,33 @@ export function DashboardPage() {
 
   return (
     <div>
-      <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ fontSize: '26px' }}>Tableau de Bord & Supervision FinTech</h1>
-        <p style={{ color: '#64748b', fontSize: '14px' }}>
-          Surveillance en temps réel des transactions sous séquestre, commandes et litiges au Sénégal (UEMOA).
-        </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
+        <div>
+          <h1 style={{ fontSize: '26px', margin: '0 0 6px 0' }}>Tableau de Bord &amp; Supervision FinTech</h1>
+          <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>
+            Surveillance en temps réel des transactions sous séquestre, commandes, visiteurs et litiges au Sénégal (UEMOA).
+          </p>
+        </div>
+
+        <div className="live-active-badge">
+          <span className="live-pulse-dot"></span>
+          <span style={{ fontWeight: 700, color: '#007a4d' }}>{metrics.activeVisitorsCount || 0}</span>
+          <span style={{ color: '#007a4d' }}>visiteur{(metrics.activeVisitorsCount || 0) > 1 ? 's' : ''} en direct</span>
+        </div>
       </div>
 
-      {/* Cartes KPIs Statistiques */}
-      <div className="stat-grid">
+      {/* Cartes KPIs Statistiques Réelles */}
+      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))' }}>
         <StatCard
           title="Volume Transactions Total"
           value={`${(metrics.totalTransactionVolumeFCFA || 0).toLocaleString('fr-FR')} FCFA`}
-          subtitle="Wave, OM & Solde interne"
+          subtitle="Wave, OM &amp; Solde interne"
           icon={TrendingUp}
           color="#00a86b"
           bgColor="#e8f8f2"
         />
         <StatCard
-          title="Fonds Verrouillés en Séquestre"
+          title="Fonds en Séquestre"
           value={`${(metrics.totalEscrowLockedFCFA || 0).toLocaleString('fr-FR')} FCFA`}
           subtitle="Garantis en attente de livraison"
           icon={ShieldCheck}
@@ -94,9 +107,25 @@ export function DashboardPage() {
           bgColor="#dbeafe"
         />
         <StatCard
+          title="Visiteurs Aujourd'hui"
+          value={(metrics.todayVisitorsCount || 0).toLocaleString('fr-FR')}
+          subtitle={`${metrics.activeVisitorsCount || 0} actuellement actifs`}
+          icon={Eye}
+          color="#10b981"
+          bgColor="#dcfce7"
+        />
+        <StatCard
+          title="Clics WhatsApp"
+          value={(metrics.whatsappClicksCount || 0).toLocaleString('fr-FR')}
+          subtitle="Interactions marchands"
+          icon={MessageCircle}
+          color="#25D366"
+          bgColor="#e6f9ed"
+        />
+        <StatCard
           title="Total Utilisateurs"
           value={metrics.usersCount || 0}
-          subtitle="Clients & Acheteurs"
+          subtitle="Clients &amp; Acheteurs"
           icon={Users}
           color="#8b5cf6"
           bgColor="#ede9fe"

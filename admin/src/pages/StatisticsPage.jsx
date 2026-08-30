@@ -4,9 +4,7 @@ import {
   UserCheck,
   UserPlus,
   Store,
-  Sparkles,
-  Award,
-  AlertOctagon,
+  ShoppingBag,
   CreditCard,
   CheckCircle2,
   Eye,
@@ -21,7 +19,17 @@ import {
   Activity,
   Smartphone,
   Globe,
-  DollarSign
+  DollarSign,
+  ShieldCheck,
+  MessageCircle,
+  ShoppingCart,
+  AlertTriangle,
+  Clock,
+  Compass,
+  Laptop,
+  Tablet,
+  Radio,
+  Flame
 } from 'lucide-react';
 import { StatCard } from '../components/StatCard';
 import { API_BASE } from '../config/api';
@@ -32,7 +40,9 @@ export function StatisticsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState(30); // 0 (off), 15, 30, 60
+  const [activeChartTab, setActiveChartTab] = useState('all'); // all, visitors, revenue, orders, products, whatsapp
+  const [activeProductTab, setActiveProductTab] = useState('views'); // views, cart, whatsapp, orders, revenue
   const [hoveredPoint, setHoveredPoint] = useState(null);
 
   const autoRefreshTimerRef = useRef(null);
@@ -54,7 +64,7 @@ export function StatisticsPage() {
         setLastUpdated(now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
       }
     } catch (err) {
-      console.error('Erreur chargement statistiques :', err);
+      console.error('Erreur lors du chargement des statistiques réelles :', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -65,77 +75,82 @@ export function StatisticsPage() {
     fetchStatistics(true);
   }, [period]);
 
-  // Actualisation automatique toutes les 60 secondes
+  // Actualisation automatique configurable
   useEffect(() => {
-    if (autoRefresh) {
+    if (autoRefreshInterval > 0) {
       autoRefreshTimerRef.current = setInterval(() => {
         fetchStatistics(false);
-      }, 60000);
+      }, autoRefreshInterval * 1000);
     }
     return () => {
       if (autoRefreshTimerRef.current) {
         clearInterval(autoRefreshTimerRef.current);
       }
     };
-  }, [autoRefresh, period]);
+  }, [autoRefreshInterval, period]);
 
-  // Fonction d'export CSV
+  // Export CSV complet et multi-sections
   const handleExportCSV = () => {
     if (!stats) return;
 
-    const u = stats.users || {};
-    const s = stats.subscriptions || {};
-    const p = stats.payments || {};
-    const v = stats.visitors || {};
-    const c = stats.conversion || {};
+    const overview = stats.overview?.kpis || {};
+    const visitors = stats.visitors || {};
+    const timeline = stats.evolution?.timeline || [];
+    const funnel = stats.conversion?.funnel || [];
+    const products = stats.products || {};
+    const devices = stats.devices?.devices || [];
+    const sources = stats.sources?.sources || [];
     const nowStr = new Date().toISOString().slice(0, 10);
 
     let csvContent = 'data:text/csv;charset=utf-8,\uFEFF';
-    csvContent += '=== RAPPORT STATISTIQUES MONEYLINK ===\r\n';
+    csvContent += '=== TABLEAU DE BORD DE PILOTAGE MONEYLINK (DONNÉES RÉELLES) ===\r\n';
     csvContent += `Date d'exportation;${new Date().toLocaleString('fr-FR')}\r\n`;
-    csvContent += `Période d'analyse;${period}\r\n`;
-    csvContent += `Note sur les revenus;${stats.disclaimer}\r\n\r\n`;
+    csvContent += `Période sélectionnée;${period}\r\n`;
+    csvContent += `Avertissement financier;${stats.disclaimer}\r\n\r\n`;
 
-    csvContent += '--- 1. INDICATEURS PRINCIPAUX (KPIS) ---\r\n';
-    csvContent += 'Indicateur;Valeur;Unité\r\n';
-    csvContent += `Total Utilisateurs;${u.total || 0};Comptes\r\n`;
-    csvContent += `Utilisateurs Actifs;${u.active || 0};Comptes\r\n`;
-    csvContent += `Clients;${u.clients || 0};Comptes\r\n`;
-    csvContent += `Commerçants;${u.merchants || 0};Comptes\r\n`;
-    csvContent += `Essais Gratuits (30j);${s.trial || 0};Abonnements\r\n`;
-    csvContent += `Abonnés Payants;${s.active || 0};Abonnements\r\n`;
-    csvContent += `Abonnements Expirés;${s.expired || 0};Abonnements\r\n`;
-    csvContent += `Revenus Réels Confirmés;${p.revenue || 0};FCFA\r\n`;
-    csvContent += `Paiements Confirmés;${p.count || 0};Transactions\r\n`;
-    csvContent += `Visiteurs Période;${v.inPeriod || 0};Visiteurs uniques\r\n`;
-    csvContent += `Visiteurs Total;${v.total || 0};Visiteurs uniques\r\n\r\n`;
+    csvContent += '--- 1. INDICATEURS CLÉS (KPIS GLOBAUX) ---\r\n';
+    csvContent += 'Indicateur;Valeur;Variation vs période précédente;Unité\r\n';
+    csvContent += `Visiteurs;${overview.visitors?.value || 0};${overview.visitors?.change || '0%'};Visiteurs uniques\r\n`;
+    csvContent += `Clients;${overview.clients?.value || 0};${overview.clients?.change || '0%'};Comptes\r\n`;
+    csvContent += `Marchands;${overview.merchants?.value || 0};${overview.merchants?.change || '0%'};Boutiques\r\n`;
+    csvContent += `Produits Actifs;${overview.products?.value || 0};-;Articles\r\n`;
+    csvContent += `Commandes Période;${overview.orders?.value || 0};${overview.orders?.change || '0%'};Commandes\r\n`;
+    csvContent += `Chiffre d'Affaires Réel;${overview.revenue?.value || 0};${overview.revenue?.change || '0%'};FCFA\r\n`;
+    csvContent += `Séquestre Verrouillé;${overview.escrowLocked?.value || 0};-;FCFA\r\n`;
+    csvContent += `Commissions Réelles;${overview.commissions?.value || 0};-;FCFA\r\n`;
+    csvContent += `Clics WhatsApp;${overview.whatsappClicks?.value || 0};${overview.whatsappClicks?.change || '0%'};Interactions\r\n`;
+    csvContent += `Ajouts au Panier;${overview.carts?.value || 0};${overview.carts?.change || '0%'};Paniers\r\n`;
+    csvContent += `Litiges;${overview.disputes?.value || 0};${overview.disputes?.change || '0%'};Dossiers\r\n\r\n`;
 
-    csvContent += '--- 2. ENTONNOIR DE CONVERSION ---\r\n';
-    csvContent += 'Étape;Effectif;Taux de conversion\r\n';
-    csvContent += `Visiteurs;${c.visitors || 0};100%\r\n`;
-    csvContent += `Inscriptions;${c.registrations || 0};${c.visitorToSignupRate || '0%'}\r\n`;
-    csvContent += `Utilisateurs Actifs;${c.activeUsers || 0};-\r\n`;
-    csvContent += `Abonnés Payants;${c.payingSubscribers || 0};${c.signupToSubRate || '0%'}\r\n`;
-    csvContent += `Taux Global Visiteur -> Abonné Payant;-;${c.globalVisitorToSubRate || '0%'}\r\n\r\n`;
+    csvContent += '--- 2. ANALYSE VISITEURS DÉTAILLÉE ---\r\n';
+    csvContent += `Visiteurs Aujourd'hui;${visitors.today || 0}\r\n`;
+    csvContent += `Visiteurs Hier;${visitors.yesterday || 0}\r\n`;
+    csvContent += `Visiteurs 7 Jours;${visitors.sevenDays || 0}\r\n`;
+    csvContent += `Visiteurs 30 Jours;${visitors.thirtyDays || 0}\r\n`;
+    csvContent += `Visiteurs 90 Jours;${visitors.ninetyDays || 0}\r\n`;
+    csvContent += `Visiteurs Cette Année;${visitors.year || 0}\r\n`;
+    csvContent += `Visiteurs Uniques Total;${visitors.uniqueVisitors || 0}\r\n`;
+    csvContent += `Sessions Totales;${visitors.sessions || 0}\r\n`;
+    csvContent += `Pages Vues Totales;${visitors.pageViews || 0}\r\n`;
+    csvContent += `Visiteurs Actifs en Direct (5 min);${visitors.activeVisitors || 0}\r\n\r\n`;
 
-    csvContent += '--- 3. SÉRIES TEMPORELLES (UTILISATEURS & REVENUS) ---\r\n';
-    csvContent += 'Période / Date;Nouveaux Utilisateurs;Visiteurs;Revenus Journaliers (FCFA);Revenus Cumulés (FCFA)\r\n';
+    csvContent += '--- 3. ENTONNOIR DE CONVERSION RÉEL ---\r\n';
+    csvContent += 'Étape;Effectif;Taux de conversion étape;Taux de conversion global;Taux d\'abandon\r\n';
+    funnel.forEach(step => {
+      csvContent += `${step.name};${step.count};${step.stepConversionRate};${step.globalConversionRate};${step.dropoffRate}\r\n`;
+    });
+    csvContent += `\r\nTaux de Conversion Final Global;${stats.conversion?.globalConversionRate || '0%'}\r\n\r\n`;
 
-    const usersTimeline = stats.timeSeries?.usersTimeline || [];
-    const visitorsTimeline = stats.timeSeries?.visitorsTimeline || [];
-    const revenueTimeline = stats.timeSeries?.revenueTimeline || [];
-
-    usersTimeline.forEach((item, index) => {
-      const vis = visitorsTimeline[index]?.visitors || 0;
-      const rev = revenueTimeline[index]?.dailyRevenue || 0;
-      const cum = revenueTimeline[index]?.cumulativeRevenue || 0;
-      csvContent += `${item.label};${item.newUsers || 0};${vis};${rev};${cum}\r\n`;
+    csvContent += '--- 4. ÉVOLUTION TEMPORELLE ---\r\n';
+    csvContent += 'Date/Heure;Visiteurs;Nouveaux Utilisateurs;Commandes;Chiffre d\'Affaires (FCFA);Vues Produits;Clics WhatsApp\r\n';
+    timeline.forEach(t => {
+      csvContent += `${t.label};${t.visitors || 0};${t.newUsers || 0};${t.orders || 0};${t.revenue || 0};${t.productViews || 0};${t.whatsappClicks || 0}\r\n`;
     });
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `moneylink_statistiques_${period}_${nowStr}.csv`);
+    link.setAttribute('download', `moneylink_analytics_${period}_${nowStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -143,49 +158,63 @@ export function StatisticsPage() {
 
   if (loading && !stats) {
     return (
-      <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-        <RefreshCw className="animate-spin" size={36} color="#00a86b" style={{ margin: '0 auto 16px' }} />
-        <h3 style={{ fontSize: '18px', color: '#0f172a' }}>Calcul des statistiques MoneyLink en temps réel...</h3>
-        <p style={{ color: '#64748b', fontSize: '14px' }}>Agrégation sécurisée des utilisateurs, paiements et analytics.</p>
+      <div style={{ padding: '80px 20px', textAlign: 'center' }}>
+        <RefreshCw className="animate-spin" size={40} color="#00a86b" style={{ margin: '0 auto 18px' }} />
+        <h3 style={{ fontSize: '20px', color: '#0f172a', fontWeight: 700 }}>Extraction des données réelles PostgreSQL...</h3>
+        <p style={{ color: '#64748b', fontSize: '14px', marginTop: '6px' }}>
+          Calcul en temps réel des visiteurs uniques, conversions, paniers et flux financiers confirmés.
+        </p>
       </div>
     );
   }
 
-  const u = stats?.users || {};
-  const s = stats?.subscriptions || {};
-  const p = stats?.payments || {};
-  const v = stats?.visitors || {};
-  const c = stats?.conversion || {};
-  const timeSeries = stats?.timeSeries || {};
+  const kpis = stats?.overview?.kpis || {};
+  const visitors = stats?.visitors || {};
+  const timeline = stats?.evolution?.timeline || [];
+  const funnel = stats?.conversion?.funnel || [];
+  const products = stats?.products || {};
+  const devices = stats?.devices || {};
+  const sources = stats?.sources || {};
+  const realtime = stats?.realtime?.events || [];
+  const pages = stats?.pages || {};
+  const geography = stats?.geography || {};
 
-  const usersTimeline = timeSeries.usersTimeline || [];
-  const visitorsTimeline = timeSeries.visitorsTimeline || [];
-  const revenueTimeline = timeSeries.revenueTimeline || [];
-  const subscriptionsTimeline = timeSeries.subscriptionsTimeline || [];
+  // Données maximales pour le scaling des graphiques SVG
+  const maxVisitors = Math.max(1, ...timeline.map(t => t.visitors || 0));
+  const maxRevenue = Math.max(1, ...timeline.map(t => t.revenue || 0));
+  const maxOrders = Math.max(1, ...timeline.map(t => t.orders || 0));
+  const maxProductViews = Math.max(1, ...timeline.map(t => t.productViews || 0));
+  const maxWaClicks = Math.max(1, ...timeline.map(t => t.whatsappClicks || 0));
 
   return (
-    <div className="statistics-page">
-      {/* En-tête de la page */}
+    <div className="analytics-cockpit">
+      {/* 1. EN-TÊTE PRINCIPAL & BARRE DE CONTRÔLE */}
       <div className="stats-header-bar">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '28px' }}>📊</span>
-            <h1 style={{ fontSize: '26px', margin: 0 }}>Centre de Pilotage &amp; Statistiques</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '32px' }}>📊</span>
+            <div>
+              <h1 style={{ fontSize: '26px', fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>
+                Console Analytics &amp; Pilotage FinTech
+              </h1>
+              <p style={{ color: '#64748b', fontSize: '13.5px', marginTop: '4px', margin: 0 }}>
+                Données 100% réelles issues de PostgreSQL — Visiteurs, interactions WhatsApp, conversions et chiffre d'affaires.
+              </p>
+            </div>
           </div>
-          <p style={{ color: '#64748b', fontSize: '14px', marginTop: '4px' }}>
-            Console d’analyse FinTech — Suivi en temps réel des utilisateurs, visiteurs, conversions et revenus réels confirmés.
-          </p>
         </div>
 
         <div className="stats-actions">
-          {/* Filtres Temporels */}
+          {/* Sélecteur de période */}
           <div className="period-filters">
             {[
               { id: 'today', label: "Aujourd'hui" },
+              { id: 'yesterday', label: 'Hier' },
               { id: '7d', label: '7 jours' },
               { id: '30d', label: '30 jours' },
+              { id: '90d', label: '90 jours' },
               { id: 'year', label: 'Cette année' }
-            ].map((tab) => (
+            ].map(tab => (
               <button
                 key={tab.id}
                 className={`period-btn ${period === tab.id ? 'active' : ''}`}
@@ -201,7 +230,7 @@ export function StatisticsPage() {
             className="btn btn-outline"
             onClick={() => fetchStatistics(false)}
             disabled={refreshing}
-            style={{ fontSize: '13px' }}
+            style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
             <span>Actualiser</span>
@@ -211,7 +240,7 @@ export function StatisticsPage() {
           <button
             className="btn btn-primary"
             onClick={handleExportCSV}
-            style={{ fontSize: '13px' }}
+            style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <Download size={15} />
             <span>Exporter CSV</span>
@@ -219,796 +248,753 @@ export function StatisticsPage() {
         </div>
       </div>
 
-      {/* Barre d'état d'actualisation & auto-refresh */}
+      {/* 2. BARRE D'ÉTAT TEMPS RÉEL & VISITEURS ACTIFS */}
       <div className="stats-meta-bar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#64748b' }}>
-          <span className="live-pulse-dot"></span>
-          <span>Données en direct</span>
-          <span>•</span>
-          <span>Mis à jour à : <strong>{lastUpdated || 'En cours...'}</strong></span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          {/* Badge Visiteurs Actifs en Direct */}
+          <div className="live-active-badge">
+            <span className="live-pulse-dot"></span>
+            <span style={{ fontWeight: 700, color: '#007a4d' }}>
+              {visitors.activeVisitors || 0}
+            </span>
+            <span style={{ color: '#007a4d' }}>visiteur{(visitors.activeVisitors || 0) > 1 ? 's' : ''} actuellement en direct</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#64748b' }}>
+            <span>•</span>
+            <span>Dernière synchro : <strong>{lastUpdated || 'En cours...'}</strong></span>
+          </div>
         </div>
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748b', cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={autoRefresh}
-            onChange={(e) => setAutoRefresh(e.target.checked)}
-            style={{ accentColor: '#00a86b' }}
-          />
-          <span>Actualisation auto (60s)</span>
-        </label>
-      </div>
-
-      {/* Bannière de Transparence & Règle des Revenus */}
-      <div className="stats-alert-banner">
-        <Info size={20} color="#00a86b" style={{ flexShrink: 0 }} />
-        <div>
-          <strong style={{ color: '#007a4d', fontSize: '13px' }}>Transparence Financière FinTech :</strong>{' '}
-          <span style={{ fontSize: '13px', color: '#334155' }}>
-            {stats?.disclaimer || "Les revenus affichés correspondent uniquement aux paiements réellement confirmés dans le système."}
-            &nbsp;Les intentions de paiement ou versements en attente ne sont jamais comptabilisés comme revenus.
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748b', cursor: 'pointer' }}>
+            <Clock size={14} />
+            <span>Auto-refresh :</span>
+            <select
+              value={autoRefreshInterval}
+              onChange={e => setAutoRefreshInterval(parseInt(e.target.value, 10))}
+              style={{
+                fontSize: '12px',
+                padding: '3px 8px',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                background: '#FFFFFF',
+                color: '#0f172a'
+              }}
+            >
+              <option value={0}>Désactivé</option>
+              <option value={15}>Toutes les 15s</option>
+              <option value={30}>Toutes les 30s</option>
+              <option value={60}>Toutes les 60s</option>
+            </select>
+          </label>
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* 2. LES 10 CARTES KPIS PRINCIPALES */}
-      {/* ========================================================================= */}
-      <div className="stat-grid-10">
-        {/* 1. Utilisateurs */}
+      {/* 3. LES 11 KPIS PRINCIPAUX AVEC VARIATION DE PÉRIODE */}
+      <div className="kpi-section-title">
+        <h3>Indicateurs Clés de Performance (KPIs)</h3>
+        <span className="kpi-section-subtitle">Comparaison automatique avec la période précédente équivalente</span>
+      </div>
+
+      <div className="stat-grid-11">
+        {/* 1. Visiteurs */}
         <StatCard
-          title="Total Utilisateurs"
-          value={(u.total || 0).toLocaleString('fr-FR')}
-          subtitle={`+${u.newInPeriod || 0} sur la période`}
+          title="👥 Visiteurs"
+          value={(kpis.visitors?.value || 0).toLocaleString('fr-FR')}
+          subtitle={`${kpis.visitors?.change || '0%'} vs précédente`}
           icon={Users}
-          color="#8b5cf6"
-          bgColor="#ede9fe"
-        />
-
-        {/* 2. Utilisateurs Actifs */}
-        <StatCard
-          title="Utilisateurs Actifs"
-          value={(u.active || 0).toLocaleString('fr-FR')}
-          subtitle="Comptes en statut actif"
-          icon={UserCheck}
-          color="#10b981"
-          bgColor="#dcfce7"
-        />
-
-        {/* 3. Clients */}
-        <StatCard
-          title="Comptes Clients"
-          value={(u.clients || 0).toLocaleString('fr-FR')}
-          subtitle="Acheteurs vérifiés"
-          icon={UserPlus}
           color="#3b82f6"
           bgColor="#dbeafe"
         />
 
-        {/* 4. Commerçants */}
+        {/* 2. Clients */}
         <StatCard
-          title="Commerçants"
-          value={(u.merchants || 0).toLocaleString('fr-FR')}
-          subtitle="Boutiques & vendeurs"
+          title="👤 Clients"
+          value={(kpis.clients?.value || 0).toLocaleString('fr-FR')}
+          subtitle={`+${kpis.clients?.newInPeriod || 0} nouveaux`}
+          icon={UserPlus}
+          color="#10b981"
+          bgColor="#dcfce7"
+        />
+
+        {/* 3. Marchands */}
+        <StatCard
+          title="🏪 Marchands"
+          value={(kpis.merchants?.value || 0).toLocaleString('fr-FR')}
+          subtitle={`+${kpis.merchants?.newInPeriod || 0} nouveaux`}
           icon={Store}
           color="#f59e0b"
           bgColor="#fef3c7"
         />
 
-        {/* 5. Essais Gratuits */}
+        {/* 4. Produits */}
         <StatCard
-          title="Essais Gratuits (30j)"
-          value={(s.trial || 0).toLocaleString('fr-FR')}
-          subtitle="Période découverte offerte"
-          icon={Sparkles}
-          color="#ec4899"
-          bgColor="#fce7f3"
+          title="🛍️ Produits"
+          value={(kpis.products?.value || 0).toLocaleString('fr-FR')}
+          subtitle="Articles en ligne"
+          icon={ShoppingBag}
+          color="#8b5cf6"
+          bgColor="#ede9fe"
         />
 
-        {/* 6. Abonnés Payants */}
+        {/* 5. Commandes */}
         <StatCard
-          title="Abonnés Payants"
-          value={(s.active || 0).toLocaleString('fr-FR')}
-          subtitle="500 FCFA / mois"
-          icon={Award}
+          title="📦 Commandes"
+          value={(kpis.orders?.value || 0).toLocaleString('fr-FR')}
+          subtitle={`${kpis.orders?.change || '0%'} (${kpis.orders?.totalAllTime || 0} au total)`}
+          icon={TrendingUp}
           color="#00a86b"
           bgColor="#e8f8f2"
         />
 
-        {/* 7. Abonnements Expirés */}
+        {/* 6. Chiffre d'affaires */}
         <StatCard
-          title="Abonnements Expirés"
-          value={(s.expired || 0).toLocaleString('fr-FR')}
-          subtitle="À renouveler via Wave / OM"
-          icon={AlertOctagon}
-          color="#ef4444"
-          bgColor="#fee2e2"
-        />
-
-        {/* 8. Revenus Réels Confirmés */}
-        <StatCard
-          title="Revenus Confirmés"
-          value={`${(p.revenue || 0).toLocaleString('fr-FR')} FCFA`}
-          subtitle="Frais séquestre + Abonnements"
-          icon={TrendingUp}
+          title="💰 Chiffre d'Affaires"
+          value={`${(kpis.revenue?.value || 0).toLocaleString('fr-FR')} FCFA`}
+          subtitle={`${kpis.revenue?.change || '0%'} confirmés`}
+          icon={DollarSign}
           color="#00a86b"
-          bgColor="#d1fae5"
+          bgColor="#e8f8f2"
         />
 
-        {/* 9. Paiements Confirmés */}
+        {/* 7. Séquestre */}
         <StatCard
-          title="Paiements Confirmés"
-          value={(p.count || 0).toLocaleString('fr-FR')}
-          subtitle="Transactions SUCCESS"
+          title="🔐 Séquestre"
+          value={`${(kpis.escrowLocked?.value || 0).toLocaleString('fr-FR')} FCFA`}
+          subtitle={`${kpis.escrowLocked?.count || 0} colis en cours`}
+          icon={ShieldCheck}
+          color="#2563eb"
+          bgColor="#eff6ff"
+        />
+
+        {/* 8. Commissions */}
+        <StatCard
+          title="💳 Commissions"
+          value={`${(kpis.commissions?.value || 0).toLocaleString('fr-FR')} FCFA`}
+          subtitle="Revenus plateforme réels"
           icon={CreditCard}
+          color="#059669"
+          bgColor="#ecfdf5"
+        />
+
+        {/* 9. Clics WhatsApp */}
+        <StatCard
+          title="💬 Clics WhatsApp"
+          value={(kpis.whatsappClicks?.value || 0).toLocaleString('fr-FR')}
+          subtitle={`${kpis.whatsappClicks?.change || '0%'} vs précédente`}
+          icon={MessageCircle}
+          color="#25D366"
+          bgColor="#e6f9ed"
+        />
+
+        {/* 10. Paniers */}
+        <StatCard
+          title="🛒 Paniers"
+          value={(kpis.carts?.value || 0).toLocaleString('fr-FR')}
+          subtitle={`${kpis.carts?.change || '0%'} ajouts`}
+          icon={ShoppingCart}
           color="#6366f1"
           bgColor="#e0e7ff"
         />
 
-        {/* 10. Visiteurs */}
+        {/* 11. Litiges */}
         <StatCard
-          title="Visiteurs Enregistrés"
-          value={(v.inPeriod || 0).toLocaleString('fr-FR')}
-          subtitle={`${v.today || 0} aujourd'hui • ${v.month || 0} ce mois`}
-          icon={Eye}
-          color="#0284c7"
-          bgColor="#e0f2fe"
+          title="⚠️ Litiges"
+          value={(kpis.disputes?.value || 0).toLocaleString('fr-FR')}
+          subtitle={`${kpis.disputes?.openCount || 0} en cours d'arbitrage`}
+          icon={AlertTriangle}
+          color="#ef4444"
+          bgColor="#fee2e2"
         />
       </div>
 
-      {/* ========================================================================= */}
-      {/* 3. SECTION ENTONNOIR DE CONVERSION */}
-      {/* ========================================================================= */}
-      <div className="card-table-container" style={{ marginBottom: '28px' }}>
-        <div className="table-header">
+      {/* 4. SECTION VISITEURS APPROFONDIE */}
+      <div className="analytics-card" style={{ marginTop: '24px' }}>
+        <div className="analytics-card-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '20px' }}>📈</span>
-            <div>
-              <h3 style={{ fontSize: '17px' }}>Entonnoir de Conversion FinTech</h3>
-              <p style={{ fontSize: '13px', color: '#64748b' }}>
-                Parcours des visiteurs depuis la découverte de MoneyLink jusqu'à l'abonnement payant.
-              </p>
-            </div>
+            <Eye size={20} color="#3b82f6" />
+            <h3 style={{ fontSize: '17px', margin: 0, fontWeight: 700 }}>Analyse Détaillée des Visiteurs Réels</h3>
+          </div>
+          <span className="badge badge-emerald">100% PostgreSQL Events</span>
+        </div>
+
+        <div className="visitors-deep-grid">
+          <div className="visitor-metric-box">
+            <span className="visitor-metric-label">Aujourd'hui</span>
+            <span className="visitor-metric-value">{(visitors.today || 0).toLocaleString('fr-FR')}</span>
+            <span className="visitor-metric-sub">visiteurs uniques</span>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <span className="badge-rate badge-rate-primary">
-              Visiteur → Inscription : <strong>{c.visitorToSignupRate || '0.00%'}</strong>
-            </span>
-            <span className="badge-rate badge-rate-success">
-              Inscription → Abonné Payant : <strong>{c.signupToSubRate || '0.00%'}</strong>
-            </span>
-            <span className="badge-rate badge-rate-gold">
-              Taux Global (Visiteur → Payant) : <strong>{c.globalVisitorToSubRate || '0.00%'}</strong>
-            </span>
+          <div className="visitor-metric-box">
+            <span className="visitor-metric-label">Hier</span>
+            <span className="visitor-metric-value">{(visitors.yesterday || 0).toLocaleString('fr-FR')}</span>
+            <span className="visitor-metric-sub">visiteurs uniques</span>
+          </div>
+
+          <div className="visitor-metric-box">
+            <span className="visitor-metric-label">7 Jours</span>
+            <span className="visitor-metric-value">{(visitors.sevenDays || 0).toLocaleString('fr-FR')}</span>
+            <span className="visitor-metric-sub">visiteurs uniques</span>
+          </div>
+
+          <div className="visitor-metric-box">
+            <span className="visitor-metric-label">30 Jours</span>
+            <span className="visitor-metric-value">{(visitors.thirtyDays || 0).toLocaleString('fr-FR')}</span>
+            <span className="visitor-metric-sub">visiteurs uniques</span>
+          </div>
+
+          <div className="visitor-metric-box">
+            <span className="visitor-metric-label">90 Jours</span>
+            <span className="visitor-metric-value">{(visitors.ninetyDays || 0).toLocaleString('fr-FR')}</span>
+            <span className="visitor-metric-sub">visiteurs uniques</span>
+          </div>
+
+          <div className="visitor-metric-box">
+            <span className="visitor-metric-label">Cette Année</span>
+            <span className="visitor-metric-value">{(visitors.year || 0).toLocaleString('fr-FR')}</span>
+            <span className="visitor-metric-sub">visiteurs uniques</span>
+          </div>
+
+          <div className="visitor-metric-box highlight">
+            <span className="visitor-metric-label">Total Unique</span>
+            <span className="visitor-metric-value">{(visitors.uniqueVisitors || 0).toLocaleString('fr-FR')}</span>
+            <span className="visitor-metric-sub">visiteurs uniques cumulés</span>
+          </div>
+
+          <div className="visitor-metric-box">
+            <span className="visitor-metric-label">Sessions</span>
+            <span className="visitor-metric-value">{(visitors.sessions || 0).toLocaleString('fr-FR')}</span>
+            <span className="visitor-metric-sub">sessions de navigation</span>
+          </div>
+
+          <div className="visitor-metric-box">
+            <span className="visitor-metric-label">Pages Vues</span>
+            <span className="visitor-metric-value">{(visitors.pageViews || 0).toLocaleString('fr-FR')}</span>
+            <span className="visitor-metric-sub">pages &amp; produits vus</span>
+          </div>
+
+          <div className="visitor-metric-box active-pulse">
+            <span className="visitor-metric-label">Actifs Direct</span>
+            <span className="visitor-metric-value live-text">{(visitors.activeVisitors || 0).toLocaleString('fr-FR')}</span>
+            <span className="visitor-metric-sub">dernières 5 min</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 5. GRAPHIQUES D'ÉVOLUTION DYNAMIQUE */}
+      <div className="analytics-card" style={{ marginTop: '24px' }}>
+        <div className="analytics-card-header">
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <TrendingUp size={20} color="#00a86b" />
+              <h3 style={{ fontSize: '17px', margin: 0, fontWeight: 700 }}>Évolution Temporelle</h3>
+            </div>
+            <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: '#64748b' }}>
+              Chronologie réelle par jour ou tranche horaire ({period})
+            </p>
+          </div>
+
+          <div className="chart-tabs">
+            {[
+              { id: 'all', label: 'Tout Afficher' },
+              { id: 'visitors', label: '👥 Visiteurs' },
+              { id: 'revenue', label: '💰 CA (FCFA)' },
+              { id: 'orders', label: '📦 Commandes' },
+              { id: 'products', label: '👁️ Vues Produits' },
+              { id: 'whatsapp', label: '💬 Clics WhatsApp' }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                className={`chart-tab-btn ${activeChartTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveChartTab(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Rendu Graphique SVG Interactif */}
+        <div className="chart-container-box">
+          {timeline.length === 0 ? (
+            <div className="empty-chart-state">
+              <span>📭</span>
+              <h4>Aucune donnée temporelle sur cette période</h4>
+              <p>Les données s'afficheront au fur et à mesure des visites et transactions réelles.</p>
+            </div>
+          ) : (
+            <div className="interactive-svg-chart">
+              <svg viewBox={`0 0 ${Math.max(600, timeline.length * 50)} 220`} className="chart-svg">
+                {/* Lignes de repère */}
+                <line x1="0" y1="30" x2="100%" y2="30" stroke="#f1f5f9" strokeDasharray="4" />
+                <line x1="0" y1="80" x2="100%" y2="80" stroke="#f1f5f9" strokeDasharray="4" />
+                <line x1="0" y1="130" x2="100%" y2="130" stroke="#f1f5f9" strokeDasharray="4" />
+                <line x1="0" y1="180" x2="100%" y2="180" stroke="#f1f5f9" strokeDasharray="4" />
+
+                {/* Barres et Points */}
+                {timeline.map((point, index) => {
+                  const stepX = (Math.max(600, timeline.length * 50) - 60) / Math.max(1, timeline.length - 1);
+                  const x = 30 + index * stepX;
+                  
+                  // Hauteurs normalisées (0 - 150px)
+                  const vHeight = ((point.visitors || 0) / maxVisitors) * 140;
+                  const oHeight = ((point.orders || 0) / maxOrders) * 140;
+                  const rHeight = ((point.revenue || 0) / maxRevenue) * 140;
+                  const pHeight = ((point.productViews || 0) / maxProductViews) * 140;
+                  const wHeight = ((point.whatsappClicks || 0) / maxWaClicks) * 140;
+
+                  return (
+                    <g
+                      key={index}
+                      className="chart-col-group"
+                      onMouseEnter={() => setHoveredPoint(point)}
+                      onMouseLeave={() => setHoveredPoint(null)}
+                    >
+                      {/* Ligne repère verticale au survol */}
+                      <line x1={x} y1="20" x2={x} y2="180" stroke="#e2e8f0" strokeWidth="1" opacity="0.6" />
+
+                      {/* Barres selon l'onglet actif */}
+                      {(activeChartTab === 'all' || activeChartTab === 'visitors') && (
+                        <rect
+                          x={x - 8}
+                          y={180 - vHeight}
+                          width="7"
+                          height={Math.max(2, vHeight)}
+                          rx="3"
+                          fill="#3b82f6"
+                          opacity="0.85"
+                        />
+                      )}
+
+                      {(activeChartTab === 'all' || activeChartTab === 'whatsapp') && (
+                        <rect
+                          x={x + 1}
+                          y={180 - wHeight}
+                          width="7"
+                          height={Math.max(2, wHeight)}
+                          rx="3"
+                          fill="#25D366"
+                          opacity="0.85"
+                        />
+                      )}
+
+                      {(activeChartTab === 'all' || activeChartTab === 'orders') && (
+                        <circle
+                          cx={x}
+                          cy={180 - oHeight}
+                          r="4"
+                          fill="#f59e0b"
+                        />
+                      )}
+
+                      {(activeChartTab === 'revenue') && (
+                        <rect
+                          x={x - 10}
+                          y={180 - rHeight}
+                          width="20"
+                          height={Math.max(2, rHeight)}
+                          rx="4"
+                          fill="#00a86b"
+                        />
+                      )}
+
+                      {(activeChartTab === 'products') && (
+                        <rect
+                          x={x - 8}
+                          y={180 - pHeight}
+                          width="16"
+                          height={Math.max(2, pHeight)}
+                          rx="4"
+                          fill="#8b5cf6"
+                        />
+                      )}
+
+                      {/* Libellé axe X */}
+                      <text
+                        x={x}
+                        y="202"
+                        textAnchor="middle"
+                        fontSize="10.5"
+                        fill="#64748b"
+                        fontWeight="600"
+                      >
+                        {point.date}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+
+              {/* Infobulle de survol (Tooltip) */}
+              {hoveredPoint && (
+                <div className="chart-tooltip">
+                  <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '6px', color: '#0f172a' }}>
+                    📅 {hoveredPoint.label}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '12px' }}>
+                    <div>👥 Visiteurs : <strong>{hoveredPoint.visitors || 0}</strong></div>
+                    <div>👤 Inscriptions : <strong>{hoveredPoint.newUsers || 0}</strong></div>
+                    <div>📦 Commandes : <strong>{hoveredPoint.orders || 0}</strong></div>
+                    <div>💰 CA : <strong>{(hoveredPoint.revenue || 0).toLocaleString('fr-FR')} FCFA</strong></div>
+                    <div>👁️ Vues Articles : <strong>{hoveredPoint.productViews || 0}</strong></div>
+                    <div>💬 Clics WhatsApp : <strong>{hoveredPoint.whatsappClicks || 0}</strong></div>
+                  </div>
+                </div>
+              )}
+
+              {/* Légende du graphique */}
+              <div className="chart-legend">
+                <span className="legend-item"><span className="legend-dot" style={{ background: '#3b82f6' }}></span> Visiteurs</span>
+                <span className="legend-item"><span className="legend-dot" style={{ background: '#25D366' }}></span> Clics WhatsApp</span>
+                <span className="legend-item"><span className="legend-dot" style={{ background: '#f59e0b' }}></span> Commandes</span>
+                <span className="legend-item"><span className="legend-dot" style={{ background: '#00a86b' }}></span> Chiffre d'Affaires</span>
+                <span className="legend-item"><span className="legend-dot" style={{ background: '#8b5cf6' }}></span> Vues Produits</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 6. ENTONNOIR DE CONVERSION RÉEL (CONVERSION FUNNEL) */}
+      <div className="analytics-card" style={{ marginTop: '24px' }}>
+        <div className="analytics-card-header">
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Layers size={20} color="#6366f1" />
+              <h3 style={{ fontSize: '17px', margin: 0, fontWeight: 700 }}>Entonnoir de Conversion Réel</h3>
+            </div>
+            <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: '#64748b' }}>
+              Parcours visiteur complet de la découverte à la livraison finale
+            </p>
+          </div>
+
+          <div style={{ textAlign: 'right' }}>
+            <span style={{ fontSize: '12px', color: '#64748b' }}>Taux Global Final :</span>
+            <div style={{ fontSize: '20px', fontWeight: 800, color: '#00a86b' }}>
+              {stats?.conversion?.globalConversionRate || '0%'}
+            </div>
           </div>
         </div>
 
         <div className="funnel-container">
-          {/* Étape 1 : Visiteurs */}
-          <div className="funnel-step">
-            <div className="funnel-step-header">
-              <div className="funnel-icon-box" style={{ background: '#e0f2fe', color: '#0284c7' }}>
-                <Eye size={20} />
-              </div>
-              <div>
-                <span className="funnel-label">1. Visiteurs Uniques</span>
-                <div className="funnel-value">{(c.visitors || 0).toLocaleString('fr-FR')}</div>
-              </div>
-            </div>
-            <div className="funnel-bar-bg">
-              <div className="funnel-bar-fill" style={{ width: '100%', background: '#0284c7' }}></div>
-            </div>
-            <span className="funnel-sub">Base de trafic initial (100%)</span>
-          </div>
+          {funnel.map((step, index) => {
+            return (
+              <div key={step.id} className="funnel-step-card">
+                <div className="funnel-step-header">
+                  <span className="funnel-step-index">{index + 1}</span>
+                  <span className="funnel-step-name">{step.name}</span>
+                </div>
 
-          <div className="funnel-arrow">
-            <ArrowRight size={22} color="#94a3b8" />
-            <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>{c.visitorToSignupRate || '0%'}</span>
-          </div>
+                <div className="funnel-step-value">
+                  {(step.count || 0).toLocaleString('fr-FR')}
+                </div>
 
-          {/* Étape 2 : Inscriptions */}
-          <div className="funnel-step">
-            <div className="funnel-step-header">
-              <div className="funnel-icon-box" style={{ background: '#ede9fe', color: '#8b5cf6' }}>
-                <UserPlus size={20} />
-              </div>
-              <div>
-                <span className="funnel-label">2. Inscriptions Réalisées</span>
-                <div className="funnel-value">{(c.registrations || 0).toLocaleString('fr-FR')}</div>
-              </div>
-            </div>
-            <div className="funnel-bar-bg">
-              <div
-                className="funnel-bar-fill"
-                style={{ width: `${Math.min(100, Math.max(10, c.raw?.visitorToSignup || 0))}%`, background: '#8b5cf6' }}
-              ></div>
-            </div>
-            <span className="funnel-sub">Clients &amp; Commerçants inscrits</span>
-          </div>
+                <div className="funnel-step-rates">
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>
+                    Étape : <strong>{step.stepConversionRate}</strong>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#00a86b', fontWeight: 700 }}>
+                    Global : {step.globalConversionRate}
+                  </div>
+                </div>
 
-          <div className="funnel-arrow">
-            <ArrowRight size={22} color="#94a3b8" />
-            <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Actifs</span>
-          </div>
-
-          {/* Étape 3 : Utilisateurs Actifs */}
-          <div className="funnel-step">
-            <div className="funnel-step-header">
-              <div className="funnel-icon-box" style={{ background: '#dcfce7', color: '#10b981' }}>
-                <UserCheck size={20} />
+                {index < funnel.length - 1 && (
+                  <div className="funnel-arrow">
+                    <ArrowRight size={16} color="#94a3b8" />
+                  </div>
+                )}
               </div>
-              <div>
-                <span className="funnel-label">3. Utilisateurs Actifs</span>
-                <div className="funnel-value">{(c.activeUsers || 0).toLocaleString('fr-FR')}</div>
-              </div>
-            </div>
-            <div className="funnel-bar-bg">
-              <div
-                className="funnel-bar-fill"
-                style={{ width: `${Math.min(100, Math.max(10, ((c.activeUsers || 0) / Math.max(1, c.registrations || 1)) * 100))}%`, background: '#10b981' }}
-              ></div>
-            </div>
-            <span className="funnel-sub">Utilisateurs engagés et connectés</span>
-          </div>
-
-          <div className="funnel-arrow">
-            <ArrowRight size={22} color="#94a3b8" />
-            <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>{c.signupToSubRate || '0%'}</span>
-          </div>
-
-          {/* Étape 4 : Abonnés Payants */}
-          <div className="funnel-step">
-            <div className="funnel-step-header">
-              <div className="funnel-icon-box" style={{ background: '#e8f8f2', color: '#00a86b' }}>
-                <Award size={20} />
-              </div>
-              <div>
-                <span className="funnel-label">4. Abonnés Payants</span>
-                <div className="funnel-value" style={{ color: '#00a86b' }}>{(c.payingSubscribers || 0).toLocaleString('fr-FR')}</div>
-              </div>
-            </div>
-            <div className="funnel-bar-bg">
-              <div
-                className="funnel-bar-fill"
-                style={{ width: `${Math.min(100, Math.max(10, c.raw?.signupToSub || 0))}%`, background: '#00a86b' }}
-              ></div>
-            </div>
-            <span className="funnel-sub">Abonnements actifs (500 FCFA/m)</span>
-          </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* 4. GRAPHIQUES D'ÉVOLUTION DANS LE TEMPS */}
-      {/* ========================================================================= */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))', gap: '24px', marginBottom: '28px' }}>
-        {/* GRAPHIQUE A : NOUVEAUX UTILISATEURS */}
-        <div className="card-table-container">
-          <div className="table-header">
+      {/* 7. PALMARÈS & CLASSEMENTS DES PRODUITS RÉELS */}
+      <div className="analytics-card" style={{ marginTop: '24px' }}>
+        <div className="analytics-card-header">
+          <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Users size={18} color="#8b5cf6" />
-              <h3 style={{ fontSize: '16px' }}>A. Évolution des Nouveaux Utilisateurs</h3>
+              <ShoppingBag size={20} color="#f59e0b" />
+              <h3 style={{ fontSize: '17px', margin: 0, fontWeight: 700 }}>Classements &amp; Performance Produits</h3>
             </div>
-            <span className="status-pill status-info" style={{ fontSize: '11px' }}>
-              Période : {period}
-            </span>
+            <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: '#64748b' }}>
+              Palmarès réel calculé sur les consultations, ajouts paniers, interactions WhatsApp et commandes
+            </p>
           </div>
 
-          <div style={{ padding: '24px 20px' }}>
-            <SimpleAreaChart
-              data={usersTimeline.map((item) => ({
-                label: item.label,
-                value: item.newUsers || 0,
-                extra: `Clients: ${item.clients || 0} • Commerçants: ${item.merchants || 0}`
-              }))}
-              strokeColor="#8b5cf6"
-              fillColor="rgba(139, 92, 246, 0.15)"
-              valueSuffix=" inscription(s)"
-            />
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px', fontSize: '12px', color: '#64748b' }}>
-              <span>Total inscrits sur la période : <strong>{u.newInPeriod || 0}</strong></span>
-              <span>Clients : <strong>{u.clients || 0}</strong> • Commerçants : <strong>{u.merchants || 0}</strong></span>
-            </div>
+          <div className="chart-tabs">
+            {[
+              { id: 'views', label: '🏆 Plus Consultés' },
+              { id: 'cart', label: '🛒 Ajouts Panier' },
+              { id: 'whatsapp', label: '💬 Clics WhatsApp' },
+              { id: 'orders', label: '📦 Plus Commandés' },
+              { id: 'revenue', label: '💰 Top CA' }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                className={`chart-tab-btn ${activeProductTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveProductTab(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* GRAPHIQUE B : VISITEURS ET TRAFIC */}
-        <div className="card-table-container">
-          <div className="table-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Eye size={18} color="#0284c7" />
-              <h3 style={{ fontSize: '16px' }}>B. Fréquentation &amp; Visiteurs</h3>
-            </div>
-            <span className="status-pill status-info" style={{ fontSize: '11px' }}>
-              {v.inPeriod || 0} sessions
-            </span>
-          </div>
+        <div className="products-ranking-table-wrap">
+          {(() => {
+            let list = [];
+            let valueLabel = 'Consultations';
+            let valKey = 'viewsCount';
 
-          <div style={{ padding: '24px 20px' }}>
-            <SimpleBarChart
-              data={visitorsTimeline.map((item) => ({
-                label: item.label,
-                value: item.visitors || 0,
-                secondaryValue: item.pageViews || 0,
-                extra: `${item.pageViews || 0} page views`
-              }))}
-              barColor="#0284c7"
-              secondaryColor="#bae6fd"
-              valueSuffix=" visiteurs"
-            />
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px', fontSize: '12px', color: '#64748b' }}>
-              <span>Aujourd'hui : <strong>{v.today || 0}</strong></span>
-              <span>7 derniers jours : <strong>{v.week || 0}</strong></span>
-              <span>30 derniers jours : <strong>{v.month || 0}</strong></span>
-            </div>
-          </div>
-        </div>
+            switch (activeProductTab) {
+              case 'cart':
+                list = products.mostAddedToCart || [];
+                valueLabel = 'Ajouts Panier';
+                valKey = 'cartAddsCount';
+                break;
+              case 'whatsapp':
+                list = products.mostWhatsAppClicks || [];
+                valueLabel = 'Clics WhatsApp';
+                valKey = 'whatsappClicksCount';
+                break;
+              case 'orders':
+                list = products.mostOrdered || [];
+                valueLabel = 'Commandes';
+                valKey = 'ordersCount';
+                break;
+              case 'revenue':
+                list = products.topRevenue || [];
+                valueLabel = 'Chiffre d\'Affaires';
+                valKey = 'revenueFCFA';
+                break;
+              default:
+                list = products.mostViewed || [];
+                valueLabel = 'Consultations';
+                valKey = 'viewsCount';
+                break;
+            }
 
-        {/* GRAPHIQUE C : RÉPARTITION DES ABONNEMENTS */}
-        <div className="card-table-container">
-          <div className="table-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Sparkles size={18} color="#00a86b" />
-              <h3 style={{ fontSize: '16px' }}>C. Répartition des Abonnements</h3>
-            </div>
-            <span className="status-pill status-success" style={{ fontSize: '11px' }}>
-              500 FCFA / mois
-            </span>
-          </div>
+            if (list.length === 0) {
+              return (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
+                  <span>📦</span>
+                  <p style={{ fontSize: '13.5px', marginTop: '6px' }}>Aucun produit dans ce classement pour la période sélectionnée.</p>
+                </div>
+              );
+            }
 
-          <div style={{ padding: '24px 20px' }}>
-            <SubscriptionDonutBreakdown
-              trial={s.trial || 0}
-              active={s.active || 0}
-              expired={s.expired || 0}
-            />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginTop: '20px', textAlign: 'center' }}>
-              <div style={{ background: '#fce7f3', padding: '10px', borderRadius: '8px' }}>
-                <span style={{ fontSize: '11px', color: '#be185d', fontWeight: 600 }}>Essais Gratuits</span>
-                <div style={{ fontSize: '16px', fontWeight: 700, color: '#9d174d' }}>{s.trial || 0}</div>
-              </div>
-              <div style={{ background: '#dcfce7', padding: '10px', borderRadius: '8px' }}>
-                <span style={{ fontSize: '11px', color: '#15803d', fontWeight: 600 }}>Abonnés Payants</span>
-                <div style={{ fontSize: '16px', fontWeight: 700, color: '#166534' }}>{s.active || 0}</div>
-              </div>
-              <div style={{ background: '#fee2e2', padding: '10px', borderRadius: '8px' }}>
-                <span style={{ fontSize: '11px', color: '#b91c1c', fontWeight: 600 }}>Expirés</span>
-                <div style={{ fontSize: '16px', fontWeight: 700, color: '#991b1b' }}>{s.expired || 0}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* GRAPHIQUE D : REVENUS CONFIRMÉS */}
-        <div className="card-table-container">
-          <div className="table-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <DollarSign size={18} color="#00a86b" />
-              <h3 style={{ fontSize: '16px' }}>D. Évolution des Revenus Réels Confirmés</h3>
-            </div>
-            <span className="status-pill status-success" style={{ fontSize: '11px' }}>
-              {(p.revenue || 0).toLocaleString('fr-FR')} FCFA
-            </span>
-          </div>
-
-          <div style={{ padding: '24px 20px' }}>
-            <SimpleAreaChart
-              data={revenueTimeline.map((item) => ({
-                label: item.label,
-                value: item.cumulativeRevenue || 0,
-                extra: `Journalier: ${(item.dailyRevenue || 0).toLocaleString('fr-FR')} FCFA (${item.ordersCount || 0} cdes)`
-              }))}
-              strokeColor="#00a86b"
-              fillColor="rgba(0, 168, 107, 0.18)"
-              valueSuffix=" FCFA"
-            />
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px', fontSize: '12px', color: '#64748b' }}>
-              <span>Frais séquestre : <strong>{(p.orderFeesRevenue || 0).toLocaleString('fr-FR')} FCFA</strong></span>
-              <span>Abonnements : <strong>{(p.subscriptionRevenue || 0).toLocaleString('fr-FR')} FCFA</strong></span>
-            </div>
-          </div>
+            return (
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '60px' }}>Rang</th>
+                    <th>Produit</th>
+                    <th>Catégorie</th>
+                    <th>Prix Unitaire</th>
+                    <th style={{ textAlign: 'right' }}>{valueLabel}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {list.map((item, idx) => (
+                    <tr key={item.id || idx}>
+                      <td style={{ fontWeight: 800, color: idx === 0 ? '#f59e0b' : idx === 1 ? '#94a3b8' : idx === 2 ? '#b45309' : '#64748b' }}>
+                        #{idx + 1} {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : ''}
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          {item.image_url ? (
+                            <img src={item.image_url} alt="" style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🛍️</div>
+                          )}
+                          <span style={{ fontWeight: 600 }}>{item.name}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="badge" style={{ background: '#f1f5f9', color: '#475569' }}>
+                          {item.category || 'Général'}
+                        </span>
+                      </td>
+                      <td style={{ fontWeight: 600, color: '#00a86b' }}>
+                        {(item.price || 0).toLocaleString('fr-FR')} FCFA
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
+                        {item.formattedValue || (item[valKey] || 0).toLocaleString('fr-FR')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            );
+          })()}
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* 5. DERNIERS ÉVÉNEMENTS D'ANALYTICS EN DIRECT */}
-      {/* ========================================================================= */}
-      <div className="card-table-container">
-        <div className="table-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Activity size={18} color="#00a86b" />
-            <div>
-              <h3 style={{ fontSize: '16px' }}>Journal des Dernières Activités &amp; Visiteurs</h3>
-              <p style={{ fontSize: '12px', color: '#64748b' }}>Flux d'événements anonymisés capturés en temps réel</p>
+      {/* 8. SOURCES DE TRAFIC & APPAREILS */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginTop: '24px' }}>
+        {/* Sources de Trafic */}
+        <div className="analytics-card">
+          <div className="analytics-card-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Globe size={20} color="#2563eb" />
+              <h3 style={{ fontSize: '17px', margin: 0, fontWeight: 700 }}>Sources de Trafic</h3>
             </div>
+            <span style={{ fontSize: '12px', color: '#64748b' }}>UTM &amp; Référents</span>
           </div>
-          <span className="status-pill status-info" style={{ fontSize: '11px' }}>
-            {(stats?.recentEvents || []).length} derniers événements
-          </span>
-        </div>
 
-        <table className="custom-table">
-          <thead>
-            <tr>
-              <th>Type d'événement</th>
-              <th>Plateforme</th>
-              <th>Session / Utilisateur</th>
-              <th>Détails &amp; Métadonnées</th>
-              <th>Date &amp; Heure</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(stats?.recentEvents || []).length === 0 ? (
-              <tr>
-                <td colSpan={5} style={{ textAlign: 'center', color: '#64748b', padding: '24px' }}>
-                  Aucun événement récent enregistré.
-                </td>
-              </tr>
+          <div style={{ padding: '16px 0' }}>
+            {(sources.sources || []).length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px', color: '#64748b', fontSize: '13px' }}>
+                Aucune source enregistrée.
+              </div>
             ) : (
-              (stats?.recentEvents || []).map((evt) => (
-                <tr key={evt.id}>
-                  <td>
-                    <span
-                      className={`status-pill ${
-                        evt.event_type === 'PAYMENT_SUCCESS' || evt.event_type === 'SUBSCRIPTION_ACTIVATED'
-                          ? 'status-success'
-                          : evt.event_type === 'REGISTER' || evt.event_type === 'LOGIN'
-                          ? 'status-info'
-                          : 'status-warning'
-                      }`}
-                      style={{ fontSize: '11px' }}
-                    >
-                      {evt.event_type}
-                    </span>
-                  </td>
-                  <td>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#475569' }}>
-                      {evt.platform === 'MOBILE_APP' ? (
-                        <>
-                          <Smartphone size={14} color="#8b5cf6" />
-                          <span>Mobile</span>
-                        </>
-                      ) : evt.platform === 'WEB_ADMIN' ? (
-                        <>
-                          <Layers size={14} color="#00a86b" />
-                          <span>Web Admin</span>
-                        </>
-                      ) : (
-                        <>
-                          <Globe size={14} color="#3b82f6" />
-                          <span>Web Landing</span>
-                        </>
-                      )}
-                    </span>
-                  </td>
-                  <td style={{ fontSize: '13px', fontFamily: 'monospace', color: '#64748b' }}>
-                    {evt.session_id ? evt.session_id.slice(0, 16) : 'Anonyme'}
-                  </td>
-                  <td style={{ fontSize: '12px', color: '#475569' }}>
-                    {evt.metadata?.amount
-                      ? `Montant: ${evt.metadata.amount.toLocaleString('fr-FR')} FCFA (${evt.metadata.method || 'Paiement'})`
-                      : evt.metadata?.path
-                      ? `Page: ${evt.metadata.path}`
-                      : evt.metadata?.role
-                      ? `Rôle: ${evt.metadata.role}`
-                      : 'Consultation standard'}
-                  </td>
-                  <td style={{ fontSize: '12px', color: '#64748b' }}>
-                    {new Date(evt.created_at).toLocaleString('fr-FR', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </td>
-                </tr>
+              (sources.sources || []).map((src) => (
+                <div key={src.name} className="share-row">
+                  <div className="share-info">
+                    <span style={{ fontWeight: 600, fontSize: '13.5px' }}>{src.name}</span>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>{src.count} visites ({src.percent}%)</span>
+                  </div>
+                  <div className="share-progress-bg">
+                    <div className="share-progress-fill" style={{ width: `${src.percent}%`, background: '#2563eb' }}></div>
+                  </div>
+                </div>
               ))
             )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================================
-   COMPOSANTS GRAPHIQUES SVG NATIFS ET LÉGERS (SANS DÉPENDANCE EXTERNE)
-   ============================================================================ */
-
-/**
- * Graphique de type "Aire continue" avec lissage, dégradé et infobulles interactives
- */
-function SimpleAreaChart({ data, strokeColor = '#00a86b', fillColor = 'rgba(0, 168, 107, 0.15)', valueSuffix = '' }) {
-  const [tooltip, setTooltip] = useState(null);
-
-  if (!data || data.length === 0) {
-    return <div style={{ height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>Aucune donnée temporelle</div>;
-  }
-
-  const maxValue = Math.max(...data.map(d => d.value), 1);
-  const width = 500;
-  const height = 180;
-  const paddingX = 30;
-  const paddingY = 25;
-
-  const chartWidth = width - paddingX * 2;
-  const chartHeight = height - paddingY * 2;
-
-  const points = data.map((d, index) => {
-    const x = paddingX + (index / Math.max(1, data.length - 1)) * chartWidth;
-    const y = height - paddingY - (d.value / maxValue) * chartHeight;
-    return { x, y, ...d };
-  });
-
-  const pathD = points.reduce((acc, p, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${p.x},${p.y}`, '');
-  const areaD = `${pathD} L ${points[points.length - 1].x},${height - paddingY} L ${points[0].x},${height - paddingY} Z`;
-
-  return (
-    <div style={{ position: 'relative', width: '100%' }}>
-      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto', overflow: 'visible' }}>
-        <defs>
-          <linearGradient id={`grad-${strokeColor.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={strokeColor} stopOpacity="0.35" />
-            <stop offset="100%" stopColor={strokeColor} stopOpacity="0.0" />
-          </linearGradient>
-        </defs>
-
-        {/* Lignes de repère */}
-        {[0, 0.5, 1].map((pct, i) => {
-          const y = height - paddingY - pct * chartHeight;
-          return (
-            <g key={i}>
-              <line x1={paddingX} y1={y} x2={width - paddingX} y2={y} stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
-              <text x={paddingX - 6} y={y + 3} textAnchor="end" fontSize="9" fill="#94a3b8">
-                {Math.round(maxValue * pct).toLocaleString('fr-FR')}
-              </text>
-            </g>
-          );
-        })}
-
-        {/* Remplissage Aire & Ligne */}
-        <path d={areaD} fill={`url(#grad-${strokeColor.replace('#', '')})`} />
-        <path d={pathD} fill="none" stroke={strokeColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-
-        {/* Points interactifs */}
-        {points.map((p, i) => (
-          <g key={i}>
-            <circle
-              cx={p.x}
-              cy={p.y}
-              r="4"
-              fill="#ffffff"
-              stroke={strokeColor}
-              strokeWidth="2"
-              style={{ cursor: 'pointer', transition: 'r 0.2s' }}
-              onMouseEnter={() => setTooltip(p)}
-              onMouseLeave={() => setTooltip(null)}
-            />
-          </g>
-        ))}
-
-        {/* Libellés X */}
-        {points.filter((_, i) => i === 0 || i === Math.floor(points.length / 2) || i === points.length - 1).map((p, i) => (
-          <text key={i} x={p.x} y={height - 5} textAnchor="middle" fontSize="10" fill="#64748b">
-            {p.label}
-          </text>
-        ))}
-      </svg>
-
-      {/* Tooltip au survol */}
-      {tooltip && (
-        <div
-          style={{
-            position: 'absolute',
-            left: `${(tooltip.x / width) * 100}%`,
-            top: `${(tooltip.y / height) * 100}%`,
-            transform: 'translate(-50%, -120%)',
-            background: '#0f172a',
-            color: '#ffffff',
-            padding: '6px 10px',
-            borderRadius: '6px',
-            fontSize: '11px',
-            whiteSpace: 'nowrap',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            pointerEvents: 'none',
-            zIndex: 10
-          }}
-        >
-          <strong>{tooltip.label}</strong> : {tooltip.value.toLocaleString('fr-FR')}{valueSuffix}
-          {tooltip.extra && <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>{tooltip.extra}</div>}
+          </div>
         </div>
-      )}
-    </div>
-  );
-}
 
-/**
- * Histogramme / Bar Chart SVG responsive
- */
-function SimpleBarChart({ data, barColor = '#0284c7', secondaryColor = '#bae6fd', valueSuffix = '' }) {
-  const [tooltip, setTooltip] = useState(null);
+        {/* Répartition Appareils & OS */}
+        <div className="analytics-card">
+          <div className="analytics-card-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Smartphone size={20} color="#8b5cf6" />
+              <h3 style={{ fontSize: '17px', margin: 0, fontWeight: 700 }}>Appareils &amp; Systèmes d'Exploitation</h3>
+            </div>
+            <span style={{ fontSize: '12px', color: '#64748b' }}>User-Agent réel</span>
+          </div>
 
-  if (!data || data.length === 0) {
-    return <div style={{ height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>Aucune donnée</div>;
-  }
+          <div style={{ padding: '16px 0' }}>
+            <div style={{ marginBottom: '16px' }}>
+              <h4 style={{ fontSize: '13px', color: '#475569', margin: '0 0 10px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Types d'Appareils
+              </h4>
+              {(devices.devices || []).map((dev) => (
+                <div key={dev.name} className="share-row">
+                  <div className="share-info">
+                    <span style={{ fontWeight: 600, fontSize: '13.5px' }}>
+                      {dev.name === 'MOBILE' ? '📱 Mobile' : dev.name === 'TABLET' ? '📟 Tablette' : '💻 Desktop'}
+                    </span>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>{dev.count} ({dev.percent}%)</span>
+                  </div>
+                  <div className="share-progress-bg">
+                    <div className="share-progress-fill" style={{ width: `${dev.percent}%`, background: '#8b5cf6' }}></div>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-  const maxValue = Math.max(...data.map(d => Math.max(d.value, d.secondaryValue || 0)), 1);
-  const width = 500;
-  const height = 180;
-  const paddingX = 30;
-  const paddingY = 25;
-
-  const chartWidth = width - paddingX * 2;
-  const chartHeight = height - paddingY * 2;
-  const barWidth = Math.max(8, (chartWidth / data.length) * 0.55);
-
-  return (
-    <div style={{ position: 'relative', width: '100%' }}>
-      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto' }}>
-        {/* Lignes repères */}
-        {[0, 0.5, 1].map((pct, i) => {
-          const y = height - paddingY - pct * chartHeight;
-          return (
-            <g key={i}>
-              <line x1={paddingX} y1={y} x2={width - paddingX} y2={y} stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
-              <text x={paddingX - 6} y={y + 3} textAnchor="end" fontSize="9" fill="#94a3b8">
-                {Math.round(maxValue * pct)}
-              </text>
-            </g>
-          );
-        })}
-
-        {/* Barres */}
-        {data.map((d, index) => {
-          const x = paddingX + (index / Math.max(1, data.length - 1)) * (chartWidth - barWidth);
-          const barHeight = (d.value / maxValue) * chartHeight;
-          const y = height - paddingY - barHeight;
-
-          return (
-            <g key={index}>
-              <rect
-                x={x}
-                y={y}
-                width={barWidth}
-                height={Math.max(2, barHeight)}
-                rx="4"
-                fill={barColor}
-                style={{ cursor: 'pointer', transition: 'fill 0.2s' }}
-                onMouseEnter={() => setTooltip({ x: x + barWidth / 2, y, ...d })}
-                onMouseLeave={() => setTooltip(null)}
-              />
-            </g>
-          );
-        })}
-
-        {/* Libellés X */}
-        {data.filter((_, i) => i === 0 || i === Math.floor(data.length / 2) || i === data.length - 1).map((d, i) => {
-          const originalIndex = i === 0 ? 0 : i === 1 ? Math.floor(data.length / 2) : data.length - 1;
-          const x = paddingX + (originalIndex / Math.max(1, data.length - 1)) * (chartWidth - barWidth) + barWidth / 2;
-          return (
-            <text key={i} x={x} y={height - 5} textAnchor="middle" fontSize="10" fill="#64748b">
-              {d.label}
-            </text>
-          );
-        })}
-      </svg>
-
-      {/* Tooltip */}
-      {tooltip && (
-        <div
-          style={{
-            position: 'absolute',
-            left: `${(tooltip.x / width) * 100}%`,
-            top: `${(tooltip.y / height) * 100}%`,
-            transform: 'translate(-50%, -120%)',
-            background: '#0f172a',
-            color: '#ffffff',
-            padding: '6px 10px',
-            borderRadius: '6px',
-            fontSize: '11px',
-            whiteSpace: 'nowrap',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            pointerEvents: 'none',
-            zIndex: 10
-          }}
-        >
-          <strong>{tooltip.label}</strong> : {tooltip.value}{valueSuffix}
-          {tooltip.extra && <div style={{ fontSize: '10px', color: '#94a3b8' }}>{tooltip.extra}</div>}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * Composant de répartition circulaire (Donut) pour les abonnements
- */
-function SubscriptionDonutBreakdown({ trial = 0, active = 0, expired = 0 }) {
-  const total = Math.max(1, trial + active + expired);
-  const trialPct = (trial / total) * 100;
-  const activePct = (active / total) * 100;
-  const expiredPct = (expired / total) * 100;
-
-  // Calcul circonférence (rayon r = 50, C = 2 * PI * 50 = 314.159)
-  const radius = 50;
-  const circumference = 2 * Math.PI * radius;
-
-  const activeStroke = (activePct / 100) * circumference;
-  const trialStroke = (trialPct / 100) * circumference;
-  const expiredStroke = (expiredPct / 100) * circumference;
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '32px' }}>
-      <div style={{ position: 'relative', width: '130px', height: '130px' }}>
-        <svg viewBox="0 0 120 120" style={{ transform: 'rotate(-90deg)', width: '100%', height: '100%' }}>
-          {/* Fond gris */}
-          <circle cx="60" cy="60" r={radius} fill="transparent" stroke="#f1f5f9" strokeWidth="16" />
-
-          {/* Abonnés Payants (Vert) */}
-          <circle
-            cx="60"
-            cy="60"
-            r={radius}
-            fill="transparent"
-            stroke="#00a86b"
-            strokeWidth="16"
-            strokeDasharray={`${activeStroke} ${circumference}`}
-            strokeDashoffset="0"
-          />
-
-          {/* Essais Gratuits (Rose) */}
-          <circle
-            cx="60"
-            cy="60"
-            r={radius}
-            fill="transparent"
-            stroke="#ec4899"
-            strokeWidth="16"
-            strokeDasharray={`${trialStroke} ${circumference}`}
-            strokeDashoffset={-activeStroke}
-          />
-
-          {/* Expirés (Rouge) */}
-          <circle
-            cx="60"
-            cy="60"
-            r={radius}
-            fill="transparent"
-            stroke="#ef4444"
-            strokeWidth="16"
-            strokeDasharray={`${expiredStroke} ${circumference}`}
-            strokeDashoffset={-(activeStroke + trialStroke)}
-          />
-        </svg>
-
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
-          <span style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>{trial + active + expired}</span>
-          <span style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>Comptes</span>
+            <div>
+              <h4 style={{ fontSize: '13px', color: '#475569', margin: '14px 0 10px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Systèmes d'Exploitation (OS)
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                {(devices.os || []).map((osItem) => (
+                  <div key={osItem.name} className="os-badge-item">
+                    <span style={{ fontWeight: 600 }}>{osItem.name}</span>
+                    <span style={{ color: '#64748b', fontSize: '11.5px' }}>{osItem.percent}% ({osItem.count})</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#00a86b' }}></span>
-          <span style={{ color: '#334155' }}>Abonnés Actifs : <strong>{active}</strong> ({activePct.toFixed(1)}%)</span>
+      {/* 9. GÉOGRAPHIE, PAGES POPULAIRES & 🔥 ACTIVITÉ EN DIRECT */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginTop: '24px' }}>
+        {/* Performance Pages & Navigation */}
+        <div className="analytics-card">
+          <div className="analytics-card-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Compass size={20} color="#00a86b" />
+              <h3 style={{ fontSize: '17px', margin: 0, fontWeight: 700 }}>Pages Populaires &amp; Navigation</h3>
+            </div>
+            <div style={{ fontSize: '12px', color: '#64748b' }}>
+              Rebond : <strong>{pages.bounceRate || '0%'}</strong>
+            </div>
+          </div>
+
+          <div style={{ padding: '10px 0' }}>
+            {(pages.topPages || []).length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px', color: '#64748b', fontSize: '13px' }}>
+                Aucune page enregistrée pour cette période.
+              </div>
+            ) : (
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th>Page / URL</th>
+                    <th style={{ textAlign: 'right' }}>Vues</th>
+                    <th style={{ textAlign: 'right' }}>Visiteurs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(pages.topPages || []).map((p, idx) => (
+                    <tr key={idx}>
+                      <td style={{ fontWeight: 600, fontSize: '13px' }}>{p.url || '/'}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 700, color: '#00a86b' }}>{p.views || 0}</td>
+                      <td style={{ textAlign: 'right', color: '#64748b' }}>{p.uniqueVisitors || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ec4899' }}></span>
-          <span style={{ color: '#334155' }}>Essais Gratuits : <strong>{trial}</strong> ({trialPct.toFixed(1)}%)</span>
+
+        {/* 🔥 ACTIVITÉ EN DIRECT (REALTIME STREAM) */}
+        <div className="analytics-card">
+          <div className="analytics-card-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Flame size={20} color="#ef4444" />
+              <h3 style={{ fontSize: '17px', margin: 0, fontWeight: 700 }}>Activité en Direct 🔥</h3>
+            </div>
+            <span className="live-pulse-badge">Flux temps réel</span>
+          </div>
+
+          <div className="live-stream-box">
+            {realtime.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#64748b', fontSize: '13px' }}>
+                En attente des premiers événements en direct...
+              </div>
+            ) : (
+              realtime.map((ev) => (
+                <div key={ev.id} className="live-event-item">
+                  <div className="live-event-icon">{ev.icon || '⚡'}</div>
+                  <div className="live-event-content">
+                    <div className="live-event-title">{ev.title}</div>
+                    <div className="live-event-time">
+                      {new Date(ev.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} • {ev.platform || 'WEB'}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' }}></span>
-          <span style={{ color: '#334155' }}>Expirés : <strong>{expired}</strong> ({expiredPct.toFixed(1)}%)</span>
+      </div>
+
+      {/* 10. BANNIÈRE TRANSPARENCE FINANCIÈRE */}
+      <div className="stats-alert-banner" style={{ marginTop: '28px' }}>
+        <Info size={20} color="#00a86b" style={{ flexShrink: 0 }} />
+        <div>
+          <strong style={{ color: '#007a4d', fontSize: '13px' }}>Transparence Financière &amp; Intégrité FinTech :</strong>{' '}
+          <span style={{ fontSize: '13px', color: '#334155' }}>
+            {stats?.disclaimer || "Les revenus affichés correspondent uniquement aux paiements réellement confirmés dans le système."}
+            &nbsp;Toutes les statistiques sont calculées dynamiquement depuis la base PostgreSQL de production sans aucune valeur fictive ou simulée.
+          </span>
         </div>
       </div>
     </div>

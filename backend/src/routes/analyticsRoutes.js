@@ -7,7 +7,9 @@ import { AnalyticsController } from '../controllers/analyticsController.js';
 
 const router = Router();
 
-// Route publique / semi-anonyme pour traquer les visites, ouvertures d'application et interactions
+// Ingestion d'événements de tracking (public / anonyme / connecté)
 router.post('/events', AnalyticsController.trackEvent);
+router.post('/track', AnalyticsController.trackEvent);
+router.post('/heartbeat', AnalyticsController.trackHeartbeat);
 
 export default router;

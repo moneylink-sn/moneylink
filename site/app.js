@@ -43,6 +43,230 @@ const AppState = {
 };
 
 // ============================================================================
+// 2b. MODULE DE TRACKING ANALYTICS CLIENT (DONNÉES RÉELLES & RGPD)
+// ============================================================================
+const Tracker = {
+  visitorId: null,
+  sessionId: null,
+  visitCount: 1,
+  isNewVisitor: true,
+  utmParams: {},
+  referrer: '',
+
+  init() {
+    try {
+      // 1. Visiteur Unique persistant
+      let vid = localStorage.getItem('moneylink_vid');
+      if (!vid) {
+        vid = 'vid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+        localStorage.setItem('moneylink_vid', vid);
+        this.isNewVisitor = true;
+      } else {
+        this.isNewVisitor = false;
+      }
+      this.visitorId = vid;
+
+      // 2. Compteur de visites
+      let visits = parseInt(localStorage.getItem('moneylink_visit_count') || '0', 10);
+      visits++;
+      localStorage.setItem('moneylink_visit_count', visits.toString());
+      this.visitCount = visits;
+
+      // 3. Session Unique avec expiration 30 minutes
+      let sid = sessionStorage.getItem('moneylink_sid');
+      let lastActivity = parseInt(sessionStorage.getItem('moneylink_last_act') || '0', 10);
+      const now = Date.now();
+
+      if (!sid || (lastActivity && now - lastActivity > 30 * 60 * 1000)) {
+        sid = 'sess_' + now + '_' + Math.random().toString(36).substring(2, 9);
+        sessionStorage.setItem('moneylink_sid', sid);
+      }
+      sessionStorage.setItem('moneylink_last_act', now.toString());
+      this.sessionId = sid;
+
+      // 4. Extraction UTM & Referrer
+      const urlParams = new URLSearchParams(window.location.search);
+      this.utmParams = {
+        utm_source: urlParams.get('utm_source') || '',
+        utm_medium: urlParams.get('utm_medium') || '',
+        utm_campaign: urlParams.get('utm_campaign') || '',
+        utm_term: urlParams.get('utm_term') || '',
+        utm_content: urlParams.get('utm_content') || ''
+      };
+      this.referrer = document.referrer || '';
+
+      // 5. Page vue initiale
+      this.pageView(window.location.pathname, document.title);
+
+      // 6. Heartbeat toutes les 60s pour la détection des visiteurs actifs en direct
+      setInterval(() => {
+        this.heartbeat();
+      }, 60000);
+
+      // 7. Écouteurs de navigation et interactions globales
+      window.addEventListener('focus', () => this.heartbeat());
+      window.addEventListener('hashchange', () => {
+        this.pageView(window.location.hash || window.location.pathname, document.title);
+      });
+
+      // Écouteur global pour les clics WhatsApp
+      document.addEventListener('click', (e) => {
+        const link = e.target.closest('a');
+        if (link && (link.href.includes('wa.me') || link.href.includes('whatsapp.com') || link.id === 'conf-whatsapp-btn')) {
+          this.whatsappClick({
+            target_url: link.href,
+            source: 'anchor_click'
+          });
+        }
+      });
+    } catch (e) {
+      console.warn('[Analytics Tracker Init Error]', e.message);
+    }
+  },
+
+  track(eventType, metadata = {}) {
+    try {
+      const now = Date.now();
+      sessionStorage.setItem('moneylink_last_act', now.toString());
+
+      const payload = {
+        event_type: eventType,
+        visitor_id: this.visitorId,
+        session_id: this.sessionId,
+        platform: 'WEB_LANDING',
+        page_url: window.location.pathname + window.location.hash,
+        page_title: document.title,
+        referrer: this.referrer,
+        ...this.utmParams,
+        user_id: AppState.user?.id || null,
+        metadata: {
+          ...metadata,
+          is_new_visitor: this.isNewVisitor,
+          visit_count: this.visitCount,
+          screen_width: window.innerWidth,
+          screen_height: window.innerHeight
+        }
+      };
+
+      const url = `${API_BASE_URL}/api/analytics/track`;
+      const dataBlob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(url, dataBlob);
+      } else {
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          keepalive: true
+        }).catch(() => {});
+      }
+    } catch (err) {
+      console.warn('[Analytics Track Error]', err.message);
+    }
+  },
+
+  pageView(url, title) {
+    this.track('PAGE_VIEW', { page_url: url, page_title: title });
+  },
+
+  productView(product) {
+    if (!product) return;
+    this.track('PRODUCT_VIEW', {
+      product_id: product.id,
+      product_name: product.name,
+      price: product.price,
+      category: product.category,
+      merchant_id: product.merchant_id,
+      merchant_name: product.merchant_name
+    });
+  },
+
+  search(query, resultsCount = 0) {
+    this.track('SEARCH', { query, results_count: resultsCount });
+  },
+
+  addToCart(product, quantity = 1) {
+    if (!product) return;
+    this.track('ADD_TO_CART', {
+      product_id: product.id,
+      product_name: product.name,
+      price: product.price,
+      quantity,
+      total: product.price * quantity,
+      category: product.category
+    });
+  },
+
+  removeFromCart(product) {
+    if (!product) return;
+    this.track('REMOVE_FROM_CART', {
+      product_id: product.id,
+      product_name: product.name,
+      price: product.price
+    });
+  },
+
+  whatsappClick(orderOrProduct = {}) {
+    this.track('WHATSAPP_CLICK', {
+      ...orderOrProduct
+    });
+  },
+
+  register(user, role) {
+    this.track('REGISTER', {
+      user_id: user?.id,
+      role: role || user?.role || 'CLIENT'
+    });
+  },
+
+  login(user, role) {
+    this.track('LOGIN', {
+      user_id: user?.id,
+      role: role || user?.role || 'CLIENT'
+    });
+  },
+
+  orderCreated(order) {
+    this.track('ORDER_CREATED', {
+      order_id: order?.id,
+      order_number: order?.order_number,
+      total_amount: order?.total_amount,
+      merchant_id: order?.merchant_id
+    });
+  },
+
+  orderConfirmed(order) {
+    this.track('ORDER_CONFIRMED', {
+      order_id: order?.id,
+      order_number: order?.order_number,
+      total_amount: order?.total_amount
+    });
+  },
+
+  heartbeat() {
+    try {
+      const url = `${API_BASE_URL}/api/analytics/heartbeat`;
+      const payload = {
+        visitor_id: this.visitorId,
+        session_id: this.sessionId,
+        page_url: window.location.pathname + window.location.hash
+      };
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(url, new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+      } else {
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          keepalive: true
+        }).catch(() => {});
+      }
+    } catch (e) {}
+  }
+};
+
+// ============================================================================
 // 3. API CLIENT CENTRALISÉ (AVEC GESTION AUTOMATIQUE JWT & ERREURS)
 // ============================================================================
 const Api = {
@@ -162,6 +386,7 @@ const Auth = {
         localStorage.setItem('moneylink_user', JSON.stringify(AppState.user));
         localStorage.setItem('moneylink_token', AppState.token);
 
+        Tracker.login(AppState.user, AppState.user.role);
         Toast.show(`Bienvenue, ${AppState.user.first_name} ! Connexion réussie.`);
         Modal.close('auth-modal');
         this.updateUI();
@@ -192,6 +417,7 @@ const Auth = {
         localStorage.setItem('moneylink_user', JSON.stringify(AppState.user));
         localStorage.setItem('moneylink_token', AppState.token);
 
+        Tracker.register(AppState.user, 'CLIENT');
         Toast.show('Compte Client créé avec succès ! 30 jours d’essai offerts.');
         Modal.close('auth-modal');
         this.updateUI();
@@ -223,6 +449,7 @@ const Auth = {
         localStorage.setItem('moneylink_user', JSON.stringify(AppState.user));
         localStorage.setItem('moneylink_token', AppState.token);
 
+        Tracker.register(AppState.user, 'MERCHANT');
         Toast.show('Espace Marchand créé avec succès ! Vous pouvez publier vos produits.');
         Modal.close('auth-modal');
         this.updateUI();
@@ -407,6 +634,9 @@ const Catalog = {
       if (res.success && Array.isArray(res.data)) {
         AppState.catalog = res.data;
         this.renderProducts(res.data);
+        if (AppState.searchQuery.trim()) {
+          Tracker.search(AppState.searchQuery.trim(), res.data.length);
+        }
       }
     } catch (err) {
       grid.innerHTML = `
@@ -501,6 +731,7 @@ const Catalog = {
     const product = AppState.catalog.find(p => p.id === productId);
     if (!product) return;
 
+    Tracker.productView(product);
     AppState.selectedProductForDetail = product;
     const body = document.getElementById('product-detail-body');
     if (!body) return;
@@ -589,12 +820,17 @@ const Cart = {
       });
     }
 
+    Tracker.addToCart(product, quantity);
     this.save();
     this.updateUI();
     Toast.show(`"${product.name}" ajouté à votre panier ! 🛒`);
   },
 
   remove(productId) {
+    const item = AppState.cart.find(i => i.product.id === productId);
+    if (item) {
+      Tracker.removeFromCart(item.product);
+    }
     AppState.cart = AppState.cart.filter(item => item.product.id !== productId);
     this.save();
     this.updateUI();
@@ -808,6 +1044,17 @@ const Checkout = {
       }
 
       Modal.open('order-confirmation-modal');
+
+      // Tracking Analytics réel de la commande et du clic WhatsApp
+      Tracker.orderCreated(createdOrder);
+      if (createdOrder.whatsapp_url) {
+        Tracker.whatsappClick({
+          order_id: createdOrder.id,
+          order_number: createdOrder.order_number,
+          total_amount: createdOrder.total_amount,
+          merchant_id: createdOrder.merchant_id
+        });
+      }
 
       // Ouverture automatique WhatsApp si URL disponible
       if (createdOrder.whatsapp_url) {
@@ -1568,6 +1815,7 @@ const Modal = {
 // 12. INITIALISATION & GESTIONNAIRES D'ÉVÉNEMENTS DOM
 // ============================================================================
 document.addEventListener('DOMContentLoaded', () => {
+  Tracker.init();
   Auth.init();
   Catalog.init();
   Cart.init();

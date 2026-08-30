@@ -19,7 +19,8 @@ export class AdminController {
           const [
             uRes, mRes, oRes, dRes, sRes,
             volRes, escRes, savRes,
-            recOrdRes, recTxnRes, pendDispRes
+            recOrdRes, recTxnRes, pendDispRes,
+            actVisRes, todVisRes, waClicksRes
           ] = await Promise.all([
             query('SELECT COUNT(*) as total FROM users'),
             query('SELECT COUNT(*) as total FROM merchants'),
@@ -31,7 +32,10 @@ export class AdminController {
             query('SELECT COALESCE(SUM(current_amount), 0) as total FROM savings_goals'),
             query('SELECT * FROM orders ORDER BY created_at DESC LIMIT 5'),
             query('SELECT * FROM transactions ORDER BY created_at DESC LIMIT 5'),
-            query("SELECT * FROM disputes WHERE status IN ('OPENED', 'IN_INVESTIGATION') ORDER BY created_at DESC")
+            query("SELECT * FROM disputes WHERE status IN ('OPENED', 'IN_INVESTIGATION') ORDER BY created_at DESC"),
+            query("SELECT COUNT(DISTINCT COALESCE(visitor_id, session_id)) as total FROM analytics_events WHERE created_at >= NOW() - INTERVAL '5 minutes'").catch(() => ({ rows: [{ total: '0' }] })),
+            query("SELECT COUNT(DISTINCT COALESCE(visitor_id, session_id)) as total FROM analytics_events WHERE created_at >= CURRENT_DATE").catch(() => ({ rows: [{ total: '0' }] })),
+            query("SELECT COUNT(*) as total FROM analytics_events WHERE event_type = 'WHATSAPP_CLICK'").catch(() => ({ rows: [{ total: '0' }] }))
           ]);
 
           stats = {
@@ -43,7 +47,10 @@ export class AdminController {
               savingsGoalsCount: parseInt(sRes.rows[0]?.total || '0', 10),
               totalTransactionVolumeFCFA: parseFloat(volRes.rows[0]?.total || 0),
               totalEscrowLockedFCFA: parseFloat(escRes.rows[0]?.total || 0),
-              totalSavingsCollectedFCFA: parseFloat(savRes.rows[0]?.total || 0)
+              totalSavingsCollectedFCFA: parseFloat(savRes.rows[0]?.total || 0),
+              activeVisitorsCount: parseInt(actVisRes.rows[0]?.total || '0', 10),
+              todayVisitorsCount: parseInt(todVisRes.rows[0]?.total || '0', 10),
+              whatsappClicksCount: parseInt(waClicksRes.rows[0]?.total || '0', 10)
             },
             recentOrders: recOrdRes.rows || [],
             recentTransactions: recTxnRes.rows || [],
@@ -72,6 +79,15 @@ export class AdminController {
         const totalSavingsCollected = memoryStore.savings_goals
           .reduce((sum, s) => sum + (parseFloat(s.current_amount) || 0), 0);
 
+        const events = memoryStore.analytics_events || [];
+        const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        const activeVisitors = new Set(events.filter(e => new Date(e.created_at) >= fiveMinAgo).map(e => e.visitor_id || e.session_id)).size;
+        const todayVisitors = new Set(events.filter(e => new Date(e.created_at) >= todayStart).map(e => e.visitor_id || e.session_id)).size;
+        const whatsappClicks = events.filter(e => e.event_type === 'WHATSAPP_CLICK').length;
+
         stats = {
           metrics: {
             usersCount,
@@ -81,7 +97,10 @@ export class AdminController {
             savingsGoalsCount,
             totalTransactionVolumeFCFA: totalTransactionVolume,
             totalEscrowLockedFCFA: totalEscrowLocked,
-            totalSavingsCollectedFCFA: totalSavingsCollected
+            totalSavingsCollectedFCFA: totalSavingsCollected,
+            activeVisitorsCount: activeVisitors,
+            todayVisitorsCount: todayVisitors,
+            whatsappClicksCount: whatsappClicks
           },
           recentOrders: memoryStore.orders.slice(-5).reverse(),
           recentTransactions: memoryStore.transactions.slice(-5).reverse(),

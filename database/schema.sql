@@ -461,18 +461,36 @@ CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at DESC);
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS analytics_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_type VARCHAR(50) NOT NULL, -- 'PAGE_VIEW', 'APP_OPEN', 'REGISTER', 'LOGIN', 'PAYMENT_SUCCESS', 'SUBSCRIPTION_ACTIVATED'
+    event_type VARCHAR(50) NOT NULL, -- 'PAGE_VIEW', 'VISIT', 'SESSION_START', 'PRODUCT_VIEW', 'SEARCH', 'ADD_TO_CART', 'REMOVE_FROM_CART', 'WHATSAPP_CLICK', 'REGISTER', 'LOGIN', 'ORDER_CREATED', 'ORDER_CONFIRMED', 'HEARTBEAT'
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    visitor_id VARCHAR(100),
     session_id VARCHAR(100),
-    platform VARCHAR(30) NOT NULL DEFAULT 'WEB_LANDING', -- 'WEB_ADMIN', 'MOBILE_APP', 'WEB_LANDING'
+    platform VARCHAR(30) NOT NULL DEFAULT 'WEB_LANDING', -- 'WEB_LANDING', 'WEB_ADMIN', 'MOBILE_APP'
+    page_url TEXT,
+    page_title VARCHAR(255),
+    referrer TEXT,
+    utm_source VARCHAR(100),
+    utm_medium VARCHAR(100),
+    utm_campaign VARCHAR(100),
+    utm_term VARCHAR(100),
+    utm_content VARCHAR(100),
+    device_type VARCHAR(30), -- 'MOBILE', 'DESKTOP', 'TABLET'
+    os VARCHAR(50), -- 'Android', 'iOS', 'Windows', 'macOS', 'Linux', 'Other'
+    browser VARCHAR(50), -- 'Chrome', 'Safari', 'Firefox', 'Edge', 'Opera', 'WhatsApp', 'Other'
+    country VARCHAR(100),
+    city VARCHAR(100),
+    ip_address VARCHAR(45),
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_analytics_events_type ON analytics_events(event_type);
-CREATE INDEX IF NOT EXISTS idx_analytics_events_user_id ON analytics_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_visitor_id ON analytics_events(visitor_id);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_session_id ON analytics_events(session_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_user_id ON analytics_events(user_id);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_platform ON analytics_events(platform);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_device_type ON analytics_events(device_type);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_utm_source ON analytics_events(utm_source);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_created_at ON analytics_events(created_at DESC);
 
 -- ----------------------------------------------------------------------------

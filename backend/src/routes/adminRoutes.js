@@ -17,8 +17,23 @@ const router = Router();
 // Toutes les routes admin nécessitent une authentification et une identité stricte Super Admin
 router.use(authenticateJWT, requireSuperAdmin);
 
+// Dashboard & Statistiques Générales
 router.get('/dashboard', AdminController.getDashboardStats);
 router.get('/statistics', AnalyticsController.getAdminStatistics);
+
+// Nouveaux Endpoints Spécialisés Analytics Super Admin
+router.get('/analytics/overview', AnalyticsController.getOverview);
+router.get('/analytics/visitors', AnalyticsController.getVisitors);
+router.get('/analytics/evolution', AnalyticsController.getEvolution);
+router.get('/analytics/devices', AnalyticsController.getDevices);
+router.get('/analytics/sources', AnalyticsController.getSources);
+router.get('/analytics/products', AnalyticsController.getProducts);
+router.get('/analytics/conversion', AnalyticsController.getConversion);
+router.get('/analytics/realtime', AnalyticsController.getRealtime);
+router.get('/analytics/pages', AnalyticsController.getPages);
+router.get('/analytics/geography', AnalyticsController.getGeography);
+
+// Utilisateurs, Litiges, Abonnements & Catalogue
 router.get('/users', AdminController.listUsers);
 router.put('/users/:id/status', validate(updateUserStatusSchema), AdminController.updateUserStatus);
 router.get('/disputes', AdminController.listDisputes);
