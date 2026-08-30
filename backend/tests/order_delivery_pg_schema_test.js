@@ -177,7 +177,7 @@ async function runSchemaAndOrderTests() {
 
     // 9. Flux WhatsApp
     assert(order.whatsapp_message !== undefined, 'Message WhatsApp formaté généré');
-    assert(order.whatsapp_message.includes('Bonjour, je souhaite passer une commande sur MoneyLink.'), 'Contenu officiel WhatsApp présent');
+    assert(order.whatsapp_message.includes('COMMANDE MONEYLINK'), 'Contenu officiel WhatsApp présent');
     assert(order.whatsapp_message.includes(order.order_number), 'Numéro de commande inclus dans le message WhatsApp');
     assert(order.whatsapp_url !== undefined && order.whatsapp_url.startsWith('https://wa.me/'), 'Lien wa.me généré pour échange direct');
 

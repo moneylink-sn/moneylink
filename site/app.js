@@ -4,7 +4,11 @@
  */
 
 // 1. Configuration de l'API Backend MoneyLink
-const API_BASE_URL = window.MONEYLINK_API_URL || 'https://moneylink-kd6v.onrender.com';
+const API_BASE_URL = window.MONEYLINK_API_URL || (
+  (typeof window !== 'undefined' && window.location && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+    ? 'http://localhost:5000'
+    : 'https://moneylink-kd6v.onrender.com'
+);
 
 // 2. État Global de l'Application
 const AppState = {
@@ -1490,7 +1494,7 @@ function initFaqAccordion() {
 
 function formatFCFA(amount) {
   const val = parseFloat(amount) || 0;
-  return new Intl.NumberFormat('fr-FR').format(val) + ' FCFA';
+  return new Intl.NumberFormat('fr-FR').format(val).replace(/[\u202F\u00A0]/g, ' ') + ' FCFA';
 }
 
 function formatOrderStatus(status) {

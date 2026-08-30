@@ -275,7 +275,7 @@ async function runMasterTests() {
 
     // Vérification message et lien WhatsApp
     assert(orderData.whatsapp_message !== undefined, 'Message WhatsApp formaté généré');
-    assert(orderData.whatsapp_message.includes('Bonjour, je souhaite passer une commande sur MoneyLink.'), 'En-tête officiel WhatsApp présent');
+    assert(orderData.whatsapp_message.includes('COMMANDE MONEYLINK'), 'En-tête officiel WhatsApp présent');
     assert(orderData.whatsapp_message.includes(orderData.order_number), 'Référence commande présente dans le message WhatsApp');
     assert(orderData.whatsapp_message.includes('Total :'), 'Total présent dans le message WhatsApp');
     assert(orderData.whatsapp_url !== undefined, 'URL WhatsApp générée');

@@ -11,25 +11,35 @@ import { notificationService } from '../services/notificationService.js';
 
 export class OrderController {
   /**
-   * Helper de génération de message WhatsApp formaté
+   * Formatage montant propre en FCFA avec espaces ASCII standards (évite les caractères invisibles \u202f)
+   */
+  static formatAmount(amount) {
+    const num = Math.round(Number(amount) || 0);
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  }
+
+  /**
+   * Helper de nettoyage du numéro de téléphone commerçant pour format international WhatsApp (wa.me)
+   */
+  static cleanWhatsAppPhone(phone) {
+    let cleaned = (phone || '').replace(/[^0-9]/g, '');
+    if (cleaned.length === 9 && (cleaned.startsWith('70') || cleaned.startsWith('75') || cleaned.startsWith('76') || cleaned.startsWith('77') || cleaned.startsWith('78') || cleaned.startsWith('33'))) {
+      cleaned = '221' + cleaned;
+    }
+    return cleaned || '221770000002';
+  }
+
+  /**
+   * Helper de génération de message WhatsApp formaté en UTF-8 pur
    */
   static generateWhatsAppMessage({ orderNumber, items, totalAmount, buyerName, buyerPhone, deliveryAddress }) {
-    let itemsText = items.map(item => `${item.product_name} × ${item.quantity} = ${item.total_price.toLocaleString('fr-FR')} FCFA`).join('\n');
-    
-    return `Bonjour, je souhaite passer une commande sur MoneyLink.
+    const formattedTotal = OrderController.formatAmount(totalAmount);
+    const itemsText = items.map(item => {
+      const itemTotal = OrderController.formatAmount(item.total_price != null ? item.total_price : (item.unit_price * item.quantity));
+      return `${item.product_name} × ${item.quantity} = ${itemTotal} FCFA`;
+    }).join('\n');
 
-🛍️ COMMANDE
-${itemsText}
-
-💰 Total : ${totalAmount.toLocaleString('fr-FR')} FCFA
-👤 Client : ${buyerName}
-📞 Téléphone : ${buyerPhone}
-📍 Adresse de livraison :
-${deliveryAddress}
-🆔 Référence commande :
-${orderNumber}
-
-Je souhaite confirmer la commande, le prix et les modalités de livraison avec le commerçant.`;
+    return `🛍️ COMMANDE MONEYLINK\n\n${itemsText}\n\n💰 Total : ${formattedTotal} FCFA\n\n👤 Client : ${buyerName}\n\n📱 Téléphone : ${buyerPhone}\n\n📍 Adresse de livraison : ${deliveryAddress}\n\n🔖 Référence commande :\n${orderNumber}\n\nJe souhaite confirmer la commande, le prix et les modalités de livraison avec le commerçant.`;
   }
 
   /**
@@ -133,7 +143,7 @@ Je souhaite confirmer la commande, le prix et les modalités de livraison avec l
 
       // 4. Génération message & lien WhatsApp Commerçant (isolation du numéro admin)
       const merchantPhone = merchant.phone || '+221770000002';
-      const cleanMerchantPhone = merchantPhone.replace(/[^0-9]/g, '');
+      const cleanMerchantPhone = OrderController.cleanWhatsAppPhone(merchantPhone);
       const whatsappMessage = OrderController.generateWhatsAppMessage({
         orderNumber,
         items: orderItems,
@@ -240,7 +250,7 @@ Je souhaite confirmer la commande, le prix et les modalités de livraison avec l
       notificationService.sendNotification({
         userId: merchant.user_id,
         title: 'Nouvelle Commande Reçue ! 🛍️',
-        message: `Commande #${orderNumber} (${totalAmount.toLocaleString('fr-FR')} FCFA) passée par ${buyerName}. En attente de confirmation WhatsApp.`,
+        message: `Commande #${orderNumber} (${OrderController.formatAmount(totalAmount)} FCFA) passée par ${buyerName}. En attente de confirmation WhatsApp.`,
         type: 'ORDER_STATUS',
         payload: { orderId, orderNumber }
       });
@@ -320,7 +330,7 @@ Je souhaite confirmer la commande, le prix et les modalités de livraison avec l
 
               // Génération WhatsApp URL pour continuer la discussion
               if (ord.merchant_phone) {
-                const cleanPhone = ord.merchant_phone.replace(/[^0-9]/g, '');
+                const cleanPhone = OrderController.cleanWhatsAppPhone(ord.merchant_phone);
                 ord.whatsapp_url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Bonjour, je souhaite échanger concernant ma commande ${ord.order_number}.`)}`;
               }
             }
@@ -349,7 +359,7 @@ Je souhaite confirmer la commande, le prix et les modalités de livraison avec l
         const merchant = memoryStore.merchants.find(m => m.id === order.merchant_id);
         const buyer = memoryStore.users.find(u => u.id === order.buyer_id);
         const dp = (memoryStore.delivery_persons || []).find(d => d.id === order.delivery_person_id);
-        const cleanPhone = (merchant?.phone || '').replace(/[^0-9]/g, '');
+        const cleanPhone = merchant?.phone ? OrderController.cleanWhatsAppPhone(merchant.phone) : null;
 
         return {
           ...order,
@@ -404,7 +414,7 @@ Je souhaite confirmer la commande, le prix et les modalités de livraison avec l
             const itemsRes = await query('SELECT * FROM order_items WHERE order_id = $1', [raw.id]);
             const disputeRes = await query('SELECT * FROM disputes WHERE order_id = $1 LIMIT 1', [raw.id]);
 
-            const cleanPhone = (raw.merchant_phone || '').replace(/[^0-9]/g, '');
+            const cleanPhone = raw.merchant_phone ? OrderController.cleanWhatsAppPhone(raw.merchant_phone) : null;
 
             order = {
               ...raw,
@@ -449,7 +459,7 @@ Je souhaite confirmer la commande, le prix et les modalités de livraison avec l
         const buyer = memoryStore.users.find(u => u.id === memOrder.buyer_id);
         const dispute = memoryStore.disputes.find(d => d.order_id === memOrder.id);
         const dp = (memoryStore.delivery_persons || []).find(d => d.id === memOrder.delivery_person_id);
-        const cleanPhone = (merchant?.phone || '').replace(/[^0-9]/g, '');
+        const cleanPhone = merchant?.phone ? OrderController.cleanWhatsAppPhone(merchant.phone) : null;
 
         order = {
           ...memOrder,
