@@ -51,18 +51,18 @@ INSERT INTO products (id, merchant_id, name, description, price, stock, image_ur
 -- 5. LIVREURS (DELIVERY PERSONS)
 -- ----------------------------------------------------------------------------
 INSERT INTO delivery_persons (id, first_name, last_name, phone, status) VALUES
-('dp000000-0000-0000-0000-000000000001', 'Mamadou', 'Diop', '+221778901234', 'AVAILABLE'),
-('dp000000-0000-0000-0000-000000000002', 'Ibrahima', 'Ndiaye', '+221778901235', 'AVAILABLE');
+('d0000000-0000-0000-0000-000000000001', 'Mamadou', 'Diop', '+221778901234', 'AVAILABLE'),
+('d0000000-0000-0000-0000-000000000002', 'Ibrahima', 'Ndiaye', '+221778901235', 'AVAILABLE');
 
 -- ----------------------------------------------------------------------------
 -- 6. COMMANDES (ORDERS) AVEC DIFFÉRENTS ÉTATS DU CYCLE ESCROW
 -- ----------------------------------------------------------------------------
 INSERT INTO orders (id, order_number, buyer_id, merchant_id, delivery_person_id, total_amount, escrow_amount, service_fee, status, delivery_code_hash, delivery_address, delivery_phone, delivery_notes, paid_at, shipped_at, delivered_at, confirmed_at) VALUES
 -- Commande 1 : En attente de livraison avec Code OTP (ex code clair : 849201) et livreur assigné
-('o0000000-0000-0000-0000-000000000001', 'ML-2026-001', 'c0000000-0000-0000-0000-000000000004', 'm0000000-0000-0000-0000-000000000001', 'dp000000-0000-0000-0000-000000000001', 45000.00, 45000.00, 500.00, 'SHIPPED', '$2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2', 'Almadies, Villa 45, Dakar', '+221770000004', 'Appeler dès l’arrivée à la porte', NOW() - INTERVAL '4 HOURS', NOW() - INTERVAL '1 HOUR', NULL, NULL),
+('o0000000-0000-0000-0000-000000000001', 'ML-2026-001', 'c0000000-0000-0000-0000-000000000004', 'm0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001', 45000.00, 45000.00, 500.00, 'SHIPPED', '$2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2', 'Almadies, Villa 45, Dakar', '+221770000004', 'Appeler dès l’arrivée à la porte', NOW() - INTERVAL '4 HOURS', NOW() - INTERVAL '1 HOUR', NULL, NULL),
 
 -- Commande 2 : Finalisée et confirmée (Fonds versés au vendeur)
-('o0000000-0000-0000-0000-000000000002', 'ML-2026-002', 'c0000000-0000-0000-0000-000000000005', 'm0000000-0000-0000-0000-000000000002', 'dp000000-0000-0000-0000-000000000002', 32000.00, 32000.00, 400.00, 'CONFIRMED', '$2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2', 'Liberté 6 Extension, Dakar', '+221770000005', 'Colis remis en main propre', NOW() - INTERVAL '2 DAYS', NOW() - INTERVAL '1 DAY', NOW() - INTERVAL '12 HOURS', NOW() - INTERVAL '12 HOURS'),
+('o0000000-0000-0000-0000-000000000002', 'ML-2026-002', 'c0000000-0000-0000-0000-000000000005', 'm0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000002', 32000.00, 32000.00, 400.00, 'CONFIRMED', '$2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2', 'Liberté 6 Extension, Dakar', '+221770000005', 'Colis remis en main propre', NOW() - INTERVAL '2 DAYS', NOW() - INTERVAL '1 DAY', NOW() - INTERVAL '12 HOURS', NOW() - INTERVAL '12 HOURS'),
 
 -- Commande 3 : En litige (Produit défectueux / non conforme)
 ('o0000000-0000-0000-0000-000000000003', 'ML-2026-003', 'c0000000-0000-0000-0000-000000000004', 'm0000000-0000-0000-0000-000000000002', NULL, 18000.00, 18000.00, 200.00, 'DISPUTED', '$2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2', 'Point E, Immeuble Horizon', '+221770000004', 'Écouteurs ne s’allument pas', NOW() - INTERVAL '1 DAY', NOW() - INTERVAL '8 HOURS', NOW() - INTERVAL '4 HOURS', NULL);

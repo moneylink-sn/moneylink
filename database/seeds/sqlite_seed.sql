@@ -29,12 +29,12 @@ INSERT INTO products (id, merchant_id, name, description, price, stock, image_ur
 ('p0000000-0000-0000-0000-000000000006', 'm0000000-0000-0000-0000-000000000002', 'Chargeur Rapide GaN 65W 3 Ports', 'Charge ultra-rapide pour MacBook, iPhone et Android en simultané.', 12500.00, 40, 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=500', 'Accessoires', 1);
 
 INSERT INTO delivery_persons (id, first_name, last_name, phone, status) VALUES
-('dp000000-0000-0000-0000-000000000001', 'Mamadou', 'Diop', '+221778901234', 'AVAILABLE'),
-('dp000000-0000-0000-0000-000000000002', 'Ibrahima', 'Ndiaye', '+221778901235', 'AVAILABLE');
+('d0000000-0000-0000-0000-000000000001', 'Mamadou', 'Diop', '+221778901234', 'AVAILABLE'),
+('d0000000-0000-0000-0000-000000000002', 'Ibrahima', 'Ndiaye', '+221778901235', 'AVAILABLE');
 
 INSERT INTO orders (id, order_number, buyer_id, merchant_id, delivery_person_id, total_amount, escrow_amount, service_fee, status, delivery_code_hash, delivery_address, delivery_phone, delivery_notes, paid_at, shipped_at, delivered_at, confirmed_at) VALUES
-('o0000000-0000-0000-0000-000000000001', 'ML-2026-001', 'c0000000-0000-0000-0000-000000000004', 'm0000000-0000-0000-0000-000000000001', 'dp000000-0000-0000-0000-000000000001', 45000.00, 45000.00, 500.00, 'SHIPPED', '$2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2', 'Almadies, Villa 45, Dakar', '+221770000004', 'Appeler dès l’arrivée à la porte', '2026-08-24 08:00:00', '2026-08-24 11:00:00', NULL, NULL),
-('o0000000-0000-0000-0000-000000000002', 'ML-2026-002', 'c0000000-0000-0000-0000-000000000005', 'm0000000-0000-0000-0000-000000000002', 'dp000000-0000-0000-0000-000000000002', 32000.00, 32000.00, 400.00, 'CONFIRMED', '$2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2', 'Liberté 6 Extension, Dakar', '+221770000005', 'Colis remis en main propre', '2026-08-22 10:00:00', '2026-08-23 09:00:00', '2026-08-23 18:00:00', '2026-08-23 18:05:00'),
+('o0000000-0000-0000-0000-000000000001', 'ML-2026-001', 'c0000000-0000-0000-0000-000000000004', 'm0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001', 45000.00, 45000.00, 500.00, 'SHIPPED', '$2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2', 'Almadies, Villa 45, Dakar', '+221770000004', 'Appeler dès l’arrivée à la porte', '2026-08-24 08:00:00', '2026-08-24 11:00:00', NULL, NULL),
+('o0000000-0000-0000-0000-000000000002', 'ML-2026-002', 'c0000000-0000-0000-0000-000000000005', 'm0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000002', 32000.00, 32000.00, 400.00, 'CONFIRMED', '$2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2', 'Liberté 6 Extension, Dakar', '+221770000005', 'Colis remis en main propre', '2026-08-22 10:00:00', '2026-08-23 09:00:00', '2026-08-23 18:00:00', '2026-08-23 18:05:00'),
 ('o0000000-0000-0000-0000-000000000003', 'ML-2026-003', 'c0000000-0000-0000-0000-000000000004', 'm0000000-0000-0000-0000-000000000002', NULL, 18000.00, 18000.00, 200.00, 'DISPUTED', '$2a$10$VBllDLdBwqdqSptL4yAHJuMZ9D6ivtvGMT5s1zLawpkeLEpk7pVi2', 'Point E, Immeuble Horizon', '+221770000004', 'Écouteurs ne s’allument pas', '2026-08-23 14:00:00', '2026-08-24 06:00:00', '2026-08-24 10:00:00', NULL);
 
 INSERT INTO order_items (id, order_id, product_id, quantity, unit_price, total_price) VALUES

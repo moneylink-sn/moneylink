@@ -33,6 +33,7 @@ export let pool = null;
 export let isPostgresConnected = false;
 
 let coreTablesInitialized = false;
+let deliveryPersonsInitialized = false;
 let analyticsEventsInitialized = false;
 
 // Stockage mémoire de secours (initialisé avec les seeds de démo) pour tests et développement local autonome
@@ -68,18 +69,6 @@ if (process.env.DATABASE_URL && process.env.USE_SQLITE !== 'true') {
  */
 export async function ensureCoreTables(client) {
   if (coreTablesInitialized) return;
-  try {
-    const testRes = await client.query('SELECT 1 FROM users LIMIT 1');
-    const prodRes = await client.query('SELECT 1 FROM products LIMIT 1');
-    const ordRes = await client.query('SELECT 1 FROM orders LIMIT 1');
-    const savRes = await client.query('SELECT 1 FROM savings_goals LIMIT 1');
-    if (testRes && prodRes && ordRes && savRes) {
-      coreTablesInitialized = true;
-      return;
-    }
-  } catch {
-    // Une ou plusieurs tables n'existent pas encore
-  }
 
   try {
     await client.query(`
@@ -342,6 +331,66 @@ export async function ensureCoreTables(client) {
     coreTablesInitialized = true;
   } catch (err) {
     console.warn('⚠️ Avertissement initialisation non-destructive tables :', err.message);
+  }
+}
+
+/**
+ * Assure la présence non-destructive de la table delivery_persons, de la colonne orders.delivery_person_id et des index
+ */
+export async function ensureDeliveryPersonsTable(client) {
+  if (deliveryPersonsInitialized) return;
+  try {
+    // 1. Création sécurisée et non-destructive de la table delivery_persons
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS delivery_persons (
+          id TEXT PRIMARY KEY,
+          first_name TEXT NOT NULL,
+          last_name TEXT NOT NULL,
+          phone TEXT UNIQUE NOT NULL,
+          status TEXT DEFAULT 'AVAILABLE',
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_delivery_persons_phone ON delivery_persons(phone);
+      CREATE INDEX IF NOT EXISTS idx_delivery_persons_status ON delivery_persons(status);
+    `);
+
+    // 2. Ajout sécurisé et non-destructif de la colonne delivery_person_id dans la table orders
+    await client.query(`
+      DO $$
+      BEGIN
+          IF EXISTS (
+              SELECT 1 FROM information_schema.tables 
+              WHERE table_schema = 'public' AND table_name = 'orders'
+          ) AND NOT EXISTS (
+              SELECT 1 FROM information_schema.columns 
+              WHERE table_schema = 'public' 
+                AND table_name = 'orders' 
+                AND column_name = 'delivery_person_id'
+          ) THEN
+              ALTER TABLE orders ADD COLUMN delivery_person_id TEXT;
+              CREATE INDEX IF NOT EXISTS idx_orders_delivery_person_id ON orders(delivery_person_id);
+          END IF;
+      END $$;
+    `);
+
+    // 3. Insertion / Mise à jour non-destructive des livreurs de référence (sans doublons)
+    await client.query(`
+      INSERT INTO delivery_persons (id, first_name, last_name, phone, status, created_at, updated_at)
+      VALUES 
+        ('d0000000-0000-0000-0000-000000000001', 'Mamadou', 'Diop', '+221778901234', 'AVAILABLE', NOW(), NOW()),
+        ('d0000000-0000-0000-0000-000000000002', 'Ibrahima', 'Ndiaye', '+221778901235', 'AVAILABLE', NOW(), NOW())
+      ON CONFLICT (phone) DO UPDATE SET
+        first_name = EXCLUDED.first_name,
+        last_name = EXCLUDED.last_name,
+        status = 'AVAILABLE',
+        updated_at = NOW();
+    `);
+
+    deliveryPersonsInitialized = true;
+  } catch (err) {
+    console.warn('⚠️ Avertissement initialisation non-destructive delivery_persons :', err.message);
   }
 }
 
@@ -667,6 +716,7 @@ export async function checkDbHealth() {
         isPostgresConnected = true;
 
         await ensureCoreTables(client);
+        await ensureDeliveryPersonsTable(client);
         await ensureAnalyticsEventsTable(client);
         await ensureAdminAccount(client);
         await seedTablesIfEmpty(client);
@@ -803,6 +853,7 @@ export default {
   isPostgresActive,
   checkDbHealth,
   ensureCoreTables,
+  ensureDeliveryPersonsTable,
   ensureAnalyticsEventsTable,
   ensureAdminAccount,
   seedTablesIfEmpty,
