@@ -33,7 +33,7 @@ DROP TABLE IF EXISTS users CASCADE;
 -- ----------------------------------------------------------------------------
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    phone VARCHAR(30) UNIQUE NOT NULL, -- Format standardisé : +221770000000
+    phone VARCHAR(30) UNIQUE NOT NULL, -- Format standardisé : +221771234567
     email VARCHAR(255) UNIQUE NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
@@ -514,3 +514,201 @@ CREATE TRIGGER trg_subscriptions_updated_at BEFORE UPDATE ON subscriptions FOR E
 CREATE TRIGGER trg_savings_goals_updated_at BEFORE UPDATE ON savings_goals FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 CREATE TRIGGER trg_disputes_updated_at BEFORE UPDATE ON disputes FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 CREATE TRIGGER trg_loyalty_programs_updated_at BEFORE UPDATE ON loyalty_programs FOR EACH ROW EXECUTE FUNCTION update_timestamp();
+
+-- ----------------------------------------------------------------------------
+-- 19. TABLE : AI_CONVERSATIONS (MoneyLink IA — Assistant Financier)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ai_conversations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role VARCHAR(20) NOT NULL DEFAULT 'USER' CHECK (role IN ('USER', 'ASSISTANT', 'SYSTEM')),
+    message TEXT NOT NULL,
+    intent VARCHAR(50) DEFAULT 'GENERAL',
+    context_data JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_conversations_user_id ON ai_conversations(user_id);
+CREATE INDEX IF NOT EXISTS idx_ai_conversations_created_at ON ai_conversations(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_conversations_intent ON ai_conversations(intent);
+
+-- ----------------------------------------------------------------------------
+-- 20. TABLE : SECURITY_EVENTS & SECURITY_ALERTS (MoneyLink Shield)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS security_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_type VARCHAR(100) NOT NULL,
+    severity VARCHAR(20) NOT NULL DEFAULT 'LOW' CHECK (severity IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
+    risk_score INTEGER NOT NULL DEFAULT 0 CHECK (risk_score >= 0 AND risk_score <= 100),
+    details JSONB DEFAULT '{}'::jsonb,
+    ip_address VARCHAR(45),
+    status VARCHAR(20) NOT NULL DEFAULT 'LOGGED' CHECK (status IN ('LOGGED', 'FLAGGED', 'RESOLVED', 'DISMISSED')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_security_events_user_id ON security_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_security_events_severity ON security_events(severity);
+CREATE INDEX IF NOT EXISTS idx_security_events_created_at ON security_events(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS security_alerts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    transaction_id UUID,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    risk_score INTEGER NOT NULL DEFAULT 0 CHECK (risk_score >= 0 AND risk_score <= 100),
+    risk_level VARCHAR(20) NOT NULL DEFAULT 'LOW' CHECK (risk_level IN ('LOW', 'MEDIUM', 'HIGH')),
+    is_acknowledged BOOLEAN NOT NULL DEFAULT FALSE,
+    action_taken VARCHAR(30) DEFAULT 'PENDING' CHECK (action_taken IN ('PENDING', 'CONFIRMED', 'CANCELLED', 'DISMISSED')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_security_alerts_user_id ON security_alerts(user_id);
+CREATE INDEX IF NOT EXISTS idx_security_alerts_risk_level ON security_alerts(risk_level);
+CREATE INDEX IF NOT EXISTS idx_security_alerts_is_acknowledged ON security_alerts(is_acknowledged);
+
+-- ----------------------------------------------------------------------------
+-- 21. TABLE : BUSINESS_PROFILES (MoneyLink Business)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS business_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    merchant_id UUID REFERENCES merchants(id) ON DELETE SET NULL,
+    business_category VARCHAR(100),
+    tax_id VARCHAR(100),
+    currency VARCHAR(5) DEFAULT 'XOF',
+    monthly_target NUMERIC(14, 2) DEFAULT 0.00,
+    settings JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_business_profiles_user_id ON business_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_business_profiles_merchant_id ON business_profiles(merchant_id);
+
+-- ----------------------------------------------------------------------------
+-- 22. TABLE : INVOICES (MoneyLink Factures Commerçants)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS invoices (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    invoice_number VARCHAR(50) UNIQUE NOT NULL,
+    merchant_id UUID NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
+    client_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    client_name VARCHAR(150) NOT NULL,
+    client_phone VARCHAR(30) NOT NULL,
+    client_email VARCHAR(255),
+    client_address TEXT,
+    subtotal NUMERIC(14, 2) NOT NULL DEFAULT 0.00 CHECK (subtotal >= 0),
+    discount_amount NUMERIC(14, 2) NOT NULL DEFAULT 0.00 CHECK (discount_amount >= 0),
+    total_amount NUMERIC(14, 2) NOT NULL DEFAULT 0.00 CHECK (total_amount >= 0),
+    paid_amount NUMERIC(14, 2) NOT NULL DEFAULT 0.00 CHECK (paid_amount >= 0),
+    currency VARCHAR(5) NOT NULL DEFAULT 'XOF',
+    status VARCHAR(30) NOT NULL DEFAULT 'BROUILLON' CHECK (status IN ('BROUILLON', 'ENVOYÉE', 'PAYÉE', 'PARTIELLEMENT_PAYÉE', 'IMPAYÉE', 'ANNULÉE')),
+    issue_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    due_date DATE,
+    notes TEXT,
+    share_token VARCHAR(100) UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_invoices_invoice_number ON invoices(invoice_number);
+CREATE INDEX IF NOT EXISTS idx_invoices_merchant_id ON invoices(merchant_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_client_id ON invoices(client_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
+CREATE INDEX IF NOT EXISTS idx_invoices_share_token ON invoices(share_token);
+CREATE INDEX IF NOT EXISTS idx_invoices_created_at ON invoices(created_at DESC);
+
+-- ----------------------------------------------------------------------------
+-- 23. TABLE : INVOICE_ITEMS (Lignes de Factures)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS invoice_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+    product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+    description TEXT NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
+    unit_price NUMERIC(14, 2) NOT NULL DEFAULT 0.00 CHECK (unit_price >= 0),
+    total_price NUMERIC(14, 2) NOT NULL DEFAULT 0.00 CHECK (total_price >= 0),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_id ON invoice_items(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_invoice_items_product_id ON invoice_items(product_id);
+
+-- ----------------------------------------------------------------------------
+-- 24. TABLE : RECEIPTS (MoneyLink Reçus Numériques)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS receipts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    receipt_number VARCHAR(50) UNIQUE NOT NULL,
+    invoice_id UUID REFERENCES invoices(id) ON DELETE SET NULL,
+    order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
+    merchant_id UUID NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
+    client_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    client_name VARCHAR(150) NOT NULL,
+    client_phone VARCHAR(30),
+    amount NUMERIC(14, 2) NOT NULL DEFAULT 0.00 CHECK (amount >= 0),
+    currency VARCHAR(5) NOT NULL DEFAULT 'XOF',
+    payment_method VARCHAR(50) NOT NULL DEFAULT 'WAVE',
+    transaction_reference VARCHAR(100),
+    status VARCHAR(30) NOT NULL DEFAULT 'COMPLETED',
+    paid_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    share_token VARCHAR(100) UNIQUE,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_receipts_receipt_number ON receipts(receipt_number);
+CREATE INDEX IF NOT EXISTS idx_receipts_merchant_id ON receipts(merchant_id);
+CREATE INDEX IF NOT EXISTS idx_receipts_invoice_id ON receipts(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_receipts_order_id ON receipts(order_id);
+CREATE INDEX IF NOT EXISTS idx_receipts_share_token ON receipts(share_token);
+CREATE INDEX IF NOT EXISTS idx_receipts_created_at ON receipts(created_at DESC);
+
+-- Triggers V2 pour updated_at
+CREATE TRIGGER trg_security_alerts_updated_at BEFORE UPDATE ON security_alerts FOR EACH ROW EXECUTE FUNCTION update_timestamp();
+CREATE TRIGGER trg_business_profiles_updated_at BEFORE UPDATE ON business_profiles FOR EACH ROW EXECUTE FUNCTION update_timestamp();
+CREATE TRIGGER trg_invoices_updated_at BEFORE UPDATE ON invoices FOR EACH ROW EXECUTE FUNCTION update_timestamp();
+
+-- ----------------------------------------------------------------------------
+-- 25. TABLE : EARLY_ACCESS_LEADS (Inscriptions Lancement Contrôlé)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS early_access_leads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    phone VARCHAR(30) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    profile_type VARCHAR(50) NOT NULL DEFAULT 'PARTICULIER' CHECK (profile_type IN ('PARTICULIER', 'COMMERCANT', 'ENTREPRENEUR')),
+    city VARCHAR(100) NOT NULL,
+    notes TEXT,
+    status VARCHAR(30) NOT NULL DEFAULT 'REGISTERED',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_early_access_phone ON early_access_leads(phone);
+CREATE INDEX IF NOT EXISTS idx_early_access_email ON early_access_leads(email);
+CREATE INDEX IF NOT EXISTS idx_early_access_created_at ON early_access_leads(created_at DESC);
+
+-- ----------------------------------------------------------------------------
+-- 26. TABLE : CONTACT_MESSAGES (Messages de Contact & Support)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS contact_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    ticket_number VARCHAR(50) UNIQUE NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(30),
+    category VARCHAR(50) NOT NULL DEFAULT 'SUPPORT',
+    subject VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'OPEN',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_contact_messages_ticket ON contact_messages(ticket_number);
+CREATE INDEX IF NOT EXISTS idx_contact_messages_category ON contact_messages(category);
+CREATE INDEX IF NOT EXISTS idx_contact_messages_created_at ON contact_messages(created_at DESC);

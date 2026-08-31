@@ -170,7 +170,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               TextField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(hintText: '+221 77 000 00 00'),
+                decoration: const InputDecoration(hintText: '+221 77 123 45 67'),
               ),
               const SizedBox(height: 16),
 

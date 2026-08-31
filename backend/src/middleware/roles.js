@@ -6,7 +6,7 @@ export const SUPER_ADMIN_CONFIG = {
   id: 'a0000000-0000-0000-0000-000000000001',
   email: 'admin@moneylink.sn',
   phone: '+221770000001',
-  personalPhone: '+221 76 611 12 39',
+  personalPhone: '+221 70 608 21 20',
   name: 'Codé Samb',
   role: 'ADMIN'
 };

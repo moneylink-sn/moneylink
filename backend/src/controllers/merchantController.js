@@ -1187,4 +1187,155 @@ export class MerchantController {
       next(err);
     }
   }
+
+  /**
+   * Soumission d'une demande de vérification KYC par le commerçant connecté
+   */
+  static async submitKycVerification(req, res, next) {
+    try {
+      const { legal_business_name, registration_number_ninea, document_type = 'NATIONAL_ID', document_url } = req.body;
+
+      let merchant = null;
+      if (pool) {
+        try {
+          const mRes = await query('SELECT * FROM merchants WHERE user_id = $1 LIMIT 1', [req.user.id]);
+          if (mRes?.rows?.length > 0) merchant = mRes.rows[0];
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      if (!merchant) {
+        merchant = memoryStore.merchants.find(m => m.user_id === req.user.id);
+      }
+
+      if (!merchant) {
+        return res.status(403).json({ success: false, error: 'Profil commerçant introuvable pour cet utilisateur.' });
+      }
+
+      const verificationId = uuidv4();
+      const nowIso = new Date().toISOString();
+
+      let kycRecord = {
+        id: verificationId,
+        merchant_id: merchant.id,
+        user_id: req.user.id,
+        legal_business_name: (legal_business_name || merchant.business_name).trim(),
+        registration_number_ninea: registration_number_ninea ? registration_number_ninea.trim() : null,
+        document_type,
+        document_url: document_url || null,
+        status: 'PENDING',
+        rejection_reason: null,
+        reviewed_by: null,
+        reviewed_at: null,
+        submitted_at: nowIso,
+        created_at: nowIso,
+        updated_at: nowIso
+      };
+
+      if (pool) {
+        try {
+          const kycRes = await query(`
+            INSERT INTO merchant_verifications (
+              id, merchant_id, user_id, legal_business_name, registration_number_ninea,
+              document_type, document_url, status, submitted_at, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING', NOW(), NOW(), NOW())
+            RETURNING *;
+          `, [
+            verificationId,
+            merchant.id,
+            req.user.id,
+            kycRecord.legal_business_name,
+            kycRecord.registration_number_ninea,
+            document_type,
+            kycRecord.document_url
+          ]);
+          if (kycRes?.rows?.length > 0) kycRecord = kycRes.rows[0];
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      // Stockage mémoire
+      if (!memoryStore.merchant_verifications) memoryStore.merchant_verifications = [];
+      memoryStore.merchant_verifications.unshift(kycRecord);
+
+      return res.status(201).json({
+        success: true,
+        message: 'Demande de vérification de compte commerçant soumise avec succès. Elle est en cours d’examen par l’équipe MoneyLink.',
+        data: {
+          verification: kycRecord,
+          tier: 'MERCHANT',
+          nextTier: 'VERIFIED_MERCHANT',
+          currentStatus: 'PENDING',
+          transparency_notice: 'Vérification interne MoneyLink basée sur les documents fournis. Aucun tiers régalien externe n\'est sollicité sans consentement.'
+        }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Consultation du statut KYC et du niveau de compte actuel
+   */
+  static async getKycStatus(req, res, next) {
+    try {
+      let merchant = null;
+      if (pool) {
+        try {
+          const mRes = await query('SELECT * FROM merchants WHERE user_id = $1 LIMIT 1', [req.user.id]);
+          if (mRes?.rows?.length > 0) merchant = mRes.rows[0];
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      if (!merchant) {
+        merchant = memoryStore.merchants.find(m => m.user_id === req.user.id);
+      }
+
+      if (!merchant) {
+        return res.status(403).json({ success: false, error: 'Profil commerçant introuvable.' });
+      }
+
+      let latestVerification = null;
+      if (pool) {
+        try {
+          const vRes = await query(`
+            SELECT * FROM merchant_verifications
+            WHERE merchant_id = $1
+            ORDER BY submitted_at DESC LIMIT 1;
+          `, [merchant.id]);
+          if (vRes?.rows?.length > 0) latestVerification = vRes.rows[0];
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      if (!latestVerification && memoryStore.merchant_verifications) {
+        latestVerification = memoryStore.merchant_verifications.find(v => v.merchant_id === merchant.id);
+      }
+
+      const isVerified = Boolean(merchant.is_verified);
+      const currentTier = isVerified ? 'VERIFIED_MERCHANT' : 'MERCHANT';
+      const kycStatus = latestVerification?.status || (isVerified ? 'VERIFIED' : 'NOT_SUBMITTED');
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          merchant_id: merchant.id,
+          business_name: merchant.business_name,
+          is_verified: isVerified,
+          tier: currentTier,
+          kyc_status: kycStatus,
+          verification_details: latestVerification || null,
+          transparency_notice: 'Statut certifié par la gouvernance MoneyLink Trust.'
+        }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
+

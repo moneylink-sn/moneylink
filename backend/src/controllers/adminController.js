@@ -754,4 +754,295 @@ export class AdminController {
       next(err);
     }
   }
+
+  /**
+   * Statistiques et métriques MoneyLink Shield pour Super Admin
+   */
+  static async getShieldStats(req, res, next) {
+    try {
+      let events = [];
+      let alerts = [];
+
+      if (pool) {
+        try {
+          const evRes = await query('SELECT * FROM security_events ORDER BY created_at DESC LIMIT 100');
+          events = evRes.rows || [];
+          const alRes = await query('SELECT * FROM security_alerts ORDER BY created_at DESC LIMIT 100');
+          alerts = alRes.rows || [];
+        } catch (dbErr) {
+          console.warn('⚠️ Fallback memoryStore pour getShieldStats :', dbErr.message);
+        }
+      }
+
+      if (!events.length && memoryStore.security_events) {
+        events = memoryStore.security_events;
+      }
+      if (!alerts.length && memoryStore.security_alerts) {
+        alerts = memoryStore.security_alerts;
+      }
+
+      const highRiskCount = alerts.filter(a => a.risk_level === 'HIGH' || a.risk_score >= 70).length;
+      const pendingAlertsCount = alerts.filter(a => !a.is_acknowledged).length;
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          totalEvents: events.length,
+          totalAlerts: alerts.length,
+          highRiskCount,
+          pendingAlertsCount,
+          recentAlerts: alerts.slice(0, 10),
+          recentEvents: events.slice(0, 10)
+        }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Statistiques et métriques MoneyLink Business & Facturation pour Super Admin
+   */
+  static async getBusinessStats(req, res, next) {
+    try {
+      let merchants = [];
+      let invoices = [];
+      let receipts = [];
+
+      if (pool) {
+        try {
+          const mRes = await query('SELECT * FROM merchants');
+          merchants = mRes.rows || [];
+          const invRes = await query('SELECT * FROM invoices');
+          invoices = invRes.rows || [];
+          const recRes = await query('SELECT * FROM receipts');
+          receipts = recRes.rows || [];
+        } catch (dbErr) {
+          console.warn('⚠️ Fallback memoryStore pour getBusinessStats :', dbErr.message);
+        }
+      }
+
+      if (!merchants.length && memoryStore.merchants) merchants = memoryStore.merchants;
+      if (!invoices.length && memoryStore.invoices) invoices = memoryStore.invoices;
+      if (!receipts.length && memoryStore.receipts) receipts = memoryStore.receipts;
+
+      const totalInvoicedAmount = invoices.reduce((sum, i) => sum + parseFloat(i.total_amount || 0), 0);
+      const totalPaidAmount = invoices.filter(i => i.status === 'PAYÉE').reduce((sum, i) => sum + parseFloat(i.paid_amount || i.total_amount || 0), 0);
+      const paidInvoicesCount = invoices.filter(i => i.status === 'PAYÉE').length;
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          totalMerchants: merchants.length,
+          activeMerchants: merchants.filter(m => m.status === 'ACTIVE').length,
+          totalInvoices: invoices.length,
+          paidInvoicesCount,
+          totalInvoicedAmount,
+          totalPaidAmount,
+          totalReceipts: receipts.length,
+          invoices: invoices.slice(0, 20)
+        }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Statistiques MoneyLink IA pour Super Admin
+   */
+  static async getAiStats(req, res, next) {
+    try {
+      let conversations = [];
+
+      if (pool) {
+        try {
+          const convRes = await query('SELECT * FROM ai_conversations ORDER BY created_at DESC LIMIT 200');
+          conversations = convRes.rows || [];
+        } catch (dbErr) {
+          console.warn('⚠️ Fallback memoryStore pour getAiStats :', dbErr.message);
+        }
+      }
+
+      if (!conversations.length && memoryStore.ai_conversations) {
+        conversations = memoryStore.ai_conversations;
+      }
+
+      const uniqueUsers = new Set(conversations.map(c => c.user_id)).size;
+      const questionsCount = conversations.filter(c => c.role === 'USER').length;
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          totalConversations: conversations.length,
+          totalQuestions: questionsCount,
+          uniqueUsersCount: uniqueUsers,
+          serviceStatus: 'ONLINE',
+          provider: process.env.AI_PROVIDER || 'LOCAL_NLP_FINTECH_ENGINE',
+          model: process.env.AI_MODEL || 'MoneyLink-Fintech-Fast-v2'
+        }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Super Admin : Liste des demandes de vérification KYC
+   */
+  static async listKycRequests(req, res, next) {
+    try {
+      const { status } = req.query;
+      let requests = [];
+
+      if (pool) {
+        try {
+          let sql = `
+            SELECT v.*,
+                   m.business_name, m.city AS merchant_city, m.phone AS merchant_phone, m.is_verified AS merchant_is_verified,
+                   u.first_name, u.last_name, u.email AS user_email, u.phone AS user_phone
+            FROM merchant_verifications v
+            JOIN merchants m ON v.merchant_id = m.id
+            JOIN users u ON v.user_id = u.id
+          `;
+          const params = [];
+          if (status && status !== 'all') {
+            sql += ' WHERE v.status = $1';
+            params.push(status);
+          }
+          sql += ' ORDER BY v.submitted_at DESC';
+
+          const vRes = await query(sql, params);
+          if (vRes?.rows) requests = vRes.rows;
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      if (!requests.length && memoryStore.merchant_verifications) {
+        requests = memoryStore.merchant_verifications.map(v => {
+          const m = (memoryStore.merchants || []).find(merchant => merchant.id === v.merchant_id);
+          const u = (memoryStore.users || []).find(user => user.id === v.user_id);
+          return {
+            ...v,
+            business_name: m?.business_name || 'Commerçant',
+            merchant_city: m?.city || 'Dakar',
+            merchant_phone: m?.phone || '',
+            merchant_is_verified: m?.is_verified ?? false,
+            first_name: u?.first_name || '',
+            last_name: u?.last_name || '',
+            user_email: u?.email || '',
+            user_phone: u?.phone || ''
+          };
+        });
+
+        if (status && status !== 'all') {
+          requests = requests.filter(r => r.status === status);
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        count: requests.length,
+        data: requests
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Super Admin : Revue et arbitrage d'une demande KYC (VERIFIED / REJECTED / SUSPENDED)
+   */
+  static async reviewKycRequest(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { status, rejection_reason } = req.body; // status: 'VERIFIED' | 'REJECTED' | 'SUSPENDED'
+
+      if (!['VERIFIED', 'REJECTED', 'SUSPENDED'].includes(status)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Statut de revue invalide (VERIFIED, REJECTED ou SUSPENDED attendu).'
+        });
+      }
+
+      let verification = null;
+      let merchant = null;
+
+      if (pool) {
+        try {
+          const vRes = await query('SELECT * FROM merchant_verifications WHERE id = $1 LIMIT 1', [id]);
+          if (vRes?.rows?.length > 0) verification = vRes.rows[0];
+
+          if (verification) {
+            const isVerifiedFlag = status === 'VERIFIED';
+            const merchantStatus = status === 'SUSPENDED' ? 'SUSPENDED' : 'ACTIVE';
+
+            // Mise à jour de la vérification
+            const updV = await query(`
+              UPDATE merchant_verifications
+              SET status = $1,
+                  rejection_reason = $2,
+                  reviewed_by = $3,
+                  reviewed_at = NOW(),
+                  updated_at = NOW()
+              WHERE id = $4
+              RETURNING *;
+            `, [status, rejection_reason || null, req.user.id, id]);
+            if (updV?.rows?.length > 0) verification = updV.rows[0];
+
+            // Mise à jour du commerçant correspondant
+            const updM = await query(`
+              UPDATE merchants
+              SET is_verified = $1,
+                  status = $2,
+                  updated_at = NOW()
+              WHERE id = $3
+              RETURNING *;
+            `, [isVerifiedFlag, merchantStatus, verification.merchant_id]);
+            if (updM?.rows?.length > 0) merchant = updM.rows[0];
+          }
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      if (!verification && memoryStore.merchant_verifications) {
+        verification = memoryStore.merchant_verifications.find(v => v.id === id);
+      }
+
+      if (!verification) {
+        return res.status(404).json({ success: false, error: 'Demande de vérification introuvable.' });
+      }
+
+      // Miroir memoryStore
+      verification.status = status;
+      verification.rejection_reason = rejection_reason || null;
+      verification.reviewed_by = req.user.id;
+      verification.reviewed_at = new Date().toISOString();
+      verification.updated_at = new Date().toISOString();
+
+      if (!merchant) {
+        merchant = memoryStore.merchants.find(m => m.id === verification.merchant_id);
+      }
+      if (merchant) {
+        merchant.is_verified = (status === 'VERIFIED');
+        if (status === 'SUSPENDED') merchant.status = 'SUSPENDED';
+        merchant.updated_at = new Date().toISOString();
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `Vérification KYC traitée avec succès. Statut : ${status}.`,
+        data: {
+          verification,
+          merchant,
+          tier: merchant?.is_verified ? 'VERIFIED_MERCHANT' : 'MERCHANT'
+        }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
+

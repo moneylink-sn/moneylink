@@ -24,6 +24,11 @@ router.get('/me', authenticateJWT, requireRole('MERCHANT'), MerchantController.g
 router.get('/me/stats', authenticateJWT, requireRole('MERCHANT'), MerchantController.getMerchantStats);
 router.get('/stats', authenticateJWT, requireRole('MERCHANT'), MerchantController.getMerchantStats);
 
+// 1b. Onboarding & KYC Tiers
+router.post('/kyc/submit', authenticateJWT, requireRole('MERCHANT'), MerchantController.submitKycVerification);
+router.get('/kyc/status', authenticateJWT, requireRole('MERCHANT'), MerchantController.getKycStatus);
+
+
 // 2. Gestion des Produits par le Commerçant Connecté
 router.get('/me/products', authenticateJWT, requireRole('MERCHANT'), MerchantController.getMerchantMyProducts);
 router.post('/products', authenticateJWT, requireRole('MERCHANT'), validate(productSchema), MerchantController.createProduct);

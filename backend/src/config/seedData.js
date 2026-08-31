@@ -670,6 +670,200 @@ export const initialSeedData = {
       created_at: new Date(Date.now() - 15 * 86400000).toISOString()
     }
   ],
-  media_uploads: []
+  media_uploads: [],
+
+  // ==========================================================================
+  // MONEYLINK V2 SEED DATA
+  // ==========================================================================
+  business_profiles: [
+    {
+      id: 'bp-00000000-0000-0000-0000-000000000001',
+      user_id: 'b0000000-0000-0000-0000-000000000002',
+      merchant_id: 'm0000000-0000-0000-0000-000000000001',
+      business_category: 'Sports & Loisirs',
+      tax_id: 'NINEA-0098745621',
+      currency: 'XOF',
+      monthly_target: 2000000,
+      settings: { auto_receipt: true, notify_whatsapp: true },
+      created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
+      updated_at: new Date().toISOString()
+    },
+    {
+      id: 'bp-00000000-0000-0000-0000-000000000002',
+      user_id: 'b0000000-0000-0000-0000-000000000003',
+      merchant_id: 'm0000000-0000-0000-0000-000000000002',
+      business_category: 'High-Tech & Téléphonie',
+      tax_id: 'NINEA-0045127896',
+      currency: 'XOF',
+      monthly_target: 5000000,
+      settings: { auto_receipt: true, notify_whatsapp: true },
+      created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
+      updated_at: new Date().toISOString()
+    }
+  ],
+
+  invoices: [
+    {
+      id: 'inv-2026-000001',
+      invoice_number: 'ML-2026-000001',
+      merchant_id: 'm0000000-0000-0000-0000-000000000001',
+      client_id: 'c0000000-0000-0000-0000-000000000004',
+      client_name: 'Moussa Fall',
+      client_phone: '+221770000004',
+      client_email: 'moussa@gmail.com',
+      client_address: 'Mermoz, Dakar',
+      subtotal: 70000,
+      discount_amount: 5000,
+      total_amount: 65000,
+      paid_amount: 65000,
+      currency: 'XOF',
+      status: 'PAYÉE',
+      issue_date: new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0],
+      due_date: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+      notes: 'Facture équipements sportifs club Dakar',
+      share_token: 'tok_inv_ml2026000001_sec892',
+      created_at: new Date(Date.now() - 7 * 86400000).toISOString(),
+      updated_at: new Date(Date.now() - 6 * 86400000).toISOString()
+    },
+    {
+      id: 'inv-2026-000002',
+      invoice_number: 'ML-2026-000002',
+      merchant_id: 'm0000000-0000-0000-0000-000000000002',
+      client_id: 'c0000000-0000-0000-0000-000000000005',
+      client_name: 'Awa Sow',
+      client_phone: '+221770000005',
+      client_email: 'awa@gmail.com',
+      client_address: 'Almadies, Dakar',
+      subtotal: 120000,
+      discount_amount: 0,
+      total_amount: 120000,
+      paid_amount: 0,
+      currency: 'XOF',
+      status: 'ENVOYÉE',
+      issue_date: new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0],
+      due_date: new Date(Date.now() + 10 * 86400000).toISOString().split('T')[0],
+      notes: 'Livraison prévue à domicile',
+      share_token: 'tok_inv_ml2026000002_sec741',
+      created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
+      updated_at: new Date().toISOString()
+    }
+  ],
+
+  invoice_items: [
+    {
+      id: 'ii-000001',
+      invoice_id: 'inv-2026-000001',
+      product_id: null,
+      description: 'Maillots Officiels Lions du Sénégal (x2)',
+      quantity: 2,
+      unit_price: 25000,
+      total_price: 50000,
+      created_at: new Date(Date.now() - 7 * 86400000).toISOString()
+    },
+    {
+      id: 'ii-000002',
+      invoice_id: 'inv-2026-000001',
+      product_id: null,
+      description: 'Sac de Sport Étanche 45L',
+      quantity: 1,
+      unit_price: 20000,
+      total_price: 20000,
+      created_at: new Date(Date.now() - 7 * 86400000).toISOString()
+    },
+    {
+      id: 'ii-000003',
+      invoice_id: 'inv-2026-000002',
+      product_id: null,
+      description: 'Pack Accessoires Informatiques Pro Fast Charging',
+      quantity: 2,
+      unit_price: 60000,
+      total_price: 120000,
+      created_at: new Date(Date.now() - 2 * 86400000).toISOString()
+    }
+  ],
+
+  receipts: [
+    {
+      id: 'rec-2026-000001',
+      receipt_number: 'REC-2026-000001',
+      invoice_id: 'inv-2026-000001',
+      order_id: null,
+      merchant_id: 'm0000000-0000-0000-0000-000000000001',
+      client_id: 'c0000000-0000-0000-0000-000000000004',
+      client_name: 'Moussa Fall',
+      client_phone: '+221770000004',
+      amount: 65000,
+      currency: 'XOF',
+      payment_method: 'WAVE',
+      transaction_reference: 'WAVE-REC-98234710',
+      status: 'COMPLETED',
+      paid_at: new Date(Date.now() - 6 * 86400000).toISOString(),
+      share_token: 'tok_rec_ml2026000001_sec109',
+      metadata: { items_count: 2, merchant_name: 'Diop Sports Pro' },
+      created_at: new Date(Date.now() - 6 * 86400000).toISOString()
+    }
+  ],
+
+  security_events: [
+    {
+      id: 'sec-ev-0001',
+      user_id: 'c0000000-0000-0000-0000-000000000004',
+      event_type: 'TRANSACTION_ANALYSIS',
+      severity: 'LOW',
+      risk_score: 12,
+      details: { amount: 25000, method: 'WAVE', reason: 'Habitude de consommation normale' },
+      ip_address: '196.207.240.12',
+      status: 'LOGGED',
+      created_at: new Date(Date.now() - 24 * 3600000).toISOString()
+    },
+    {
+      id: 'sec-ev-0002',
+      user_id: 'c0000000-0000-0000-0000-000000000004',
+      event_type: 'HIGH_AMOUNT_CHECK',
+      severity: 'MEDIUM',
+      risk_score: 45,
+      details: { amount: 150000, threshold: 100000, reason: 'Montant supérieur à la moyenne mensuelle' },
+      ip_address: '196.207.240.12',
+      status: 'RESOLVED',
+      created_at: new Date(Date.now() - 12 * 3600000).toISOString()
+    }
+  ],
+
+  security_alerts: [
+    {
+      id: 'sec-al-0001',
+      user_id: 'c0000000-0000-0000-0000-000000000004',
+      transaction_id: null,
+      title: '🛡️ Analyse de sécurité MoneyLink Shield',
+      message: 'Une opération inhabituelle de 150 000 FCFA a fait l’objet d’une vérification supplémentaire.',
+      risk_score: 45,
+      risk_level: 'MEDIUM',
+      is_acknowledged: true,
+      action_taken: 'CONFIRMED',
+      created_at: new Date(Date.now() - 12 * 3600000).toISOString(),
+      updated_at: new Date().toISOString()
+    }
+  ],
+
+  ai_conversations: [
+    {
+      id: 'ai-msg-0001',
+      user_id: 'c0000000-0000-0000-0000-000000000004',
+      role: 'USER',
+      message: 'Combien ai-je dépensé cette semaine ?',
+      intent: 'EXPENSE_ANALYSIS',
+      context_data: { period: 'week' },
+      created_at: new Date(Date.now() - 2 * 3600000).toISOString()
+    },
+    {
+      id: 'ai-msg-0002',
+      user_id: 'c0000000-0000-0000-0000-000000000004',
+      role: 'ASSISTANT',
+      message: 'Cette semaine, vos dépenses totales s’élèvent à 65 000 FCFA. Votre principal poste de dépense est "Sports & Loisirs" (100%). Vous avez économisé 5 000 FCFA grâce à des remises.',
+      intent: 'EXPENSE_ANALYSIS',
+      context_data: { total_spent: 65000, top_category: 'Sports & Loisirs' },
+      created_at: new Date(Date.now() - 2 * 3600000 + 1000).toISOString()
+    }
+  ]
 };
 

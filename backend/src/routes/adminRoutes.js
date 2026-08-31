@@ -21,6 +21,11 @@ router.use(authenticateJWT, requireSuperAdmin);
 router.get('/dashboard', AdminController.getDashboardStats);
 router.get('/statistics', AnalyticsController.getAdminStatistics);
 
+// Nouveaux Endpoints MoneyLink V2 Super Admin
+router.get('/shield/stats', AdminController.getShieldStats);
+router.get('/business/stats', AdminController.getBusinessStats);
+router.get('/ai/stats', AdminController.getAiStats);
+
 // Nouveaux Endpoints Spécialisés Analytics Super Admin
 router.get('/analytics/overview', AnalyticsController.getOverview);
 router.get('/analytics/visitors', AnalyticsController.getVisitors);
@@ -37,6 +42,8 @@ router.get('/analytics/geography', AnalyticsController.getGeography);
 router.get('/users', AdminController.listUsers);
 router.put('/users/:id/status', validate(updateUserStatusSchema), AdminController.updateUserStatus);
 router.get('/merchants', AdminController.listMerchantsDetailed);
+router.get('/kyc/requests', AdminController.listKycRequests);
+router.put('/kyc/requests/:id', AdminController.reviewKycRequest);
 router.get('/disputes', AdminController.listDisputes);
 router.post('/disputes/:id/resolve', validate(resolveDisputeSchema), AdminController.resolveDispute);
 router.get('/subscriptions', SubscriptionController.listAdminSubscriptions);
@@ -45,5 +52,6 @@ router.get('/products', AdminController.listProducts);
 router.put('/products/:id/status', AdminController.updateProductStatus);
 router.delete('/products/:id', AdminController.deleteProduct);
 router.post('/catalog/clean-duplicates', AdminController.cleanCatalogDuplicates);
+
 
 export default router;

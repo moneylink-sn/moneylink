@@ -386,7 +386,7 @@ sudo certbot --nginx -d moneylink.sn -d www.moneylink.sn -d api.moneylink.sn -d 
 | **1. Contrat Marchand** | Signature des conventions de partenariat avec Wave Digital Finance Sénégal et Sonatel / Orange Money. |
 | **2. Clés Live API** | Réception des `API_KEY` et `MERCHANT_ID` de production dans le portail développeur officiel. |
 | **3. Webhooks Sécurisés** | Enregistrement de l'URL publique `https://api.moneylink.sn/api/webhooks/wave` et `https://api.moneylink.sn/api/webhooks/orange-money` avec signature HMAC SHA-256. |
-| **4. Isolation Séquestre** | Vérification que le compte de cantonnement bancaire (compte séquestre) est audité et séparé du compte d'exploitation de MoneyLink. |
+| **4. Isolation Séquestre** | Vérification que les mécanismes de séquestre, de contrôle et de traçabilité des fonds sont audités conformément aux conditions des partenaires de paiement. |
 
 ---
 

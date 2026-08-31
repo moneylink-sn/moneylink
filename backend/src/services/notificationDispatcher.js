@@ -75,8 +75,112 @@ export const NotificationTemplates = {
     title: 'Rappel Échéance Coffre (J-2) ⏰',
     inApp: `Votre coffre "${goalTitle}" arrive à échéance dans 2 jours ! Progression: ${currentAmount.toLocaleString('fr-FR')} / ${targetAmount.toLocaleString('fr-FR')} FCFA.`,
     sms: `[MoneyLink Coffre] Rappel : Votre projet "${goalTitle}" se termine dans 48h. Collecté: ${currentAmount.toLocaleString('fr-FR')} / ${targetAmount.toLocaleString('fr-FR')} FCFA.`,
-    whatsapp: `⏰ *Rappel Échéance Tontine / Coffre*\nVotre projet *"${goalTitle}"* arrive à échéance dans *2 jours*.\n\n📊 Progression : *${currentAmount.toLocaleString('fr-FR')} / ${targetAmount.toLocaleString('fr-FR')} FCFA*`
-  })
+    whatsapp: `⏰ *Rappel Échéance Tontine / Coffre*\nVotre projet *"${goalTitle}"* arrive à échéance dans *2 jours*.\n\n📊 Progression : *${currentAmount.toLocaleString('fr-FR')} / ${targetAmount.toLocaleString('fr-FR')} FCFA*`,
+    email: {
+      subject: `Rappel d'échéance : ${goalTitle}`,
+      text: `Votre coffre d'épargne "${goalTitle}" se termine dans 48h. Total collecté : ${currentAmount} / ${targetAmount} FCFA.`
+    }
+  }),
+
+  // 9. Paiement Reçu Direct
+  PAYMENT_RECEIVED: (amount, senderName, reference) => ({
+    title: 'Paiement Reçu 💰',
+    inApp: `Vous avez reçu un paiement de ${amount.toLocaleString('fr-FR')} FCFA de la part de ${senderName}. Réf: ${reference}`,
+    sms: `[MoneyLink] Paiement reçu : ${amount.toLocaleString('fr-FR')} FCFA de ${senderName}. Réf: ${reference}`,
+    whatsapp: `💰 *Paiement Reçu sur MoneyLink*\nMontant : *${amount.toLocaleString('fr-FR')} FCFA*\nDe : *${senderName}*\nRéférence : \`${reference}\``,
+    email: {
+      subject: `Paiement reçu : ${amount} FCFA`,
+      text: `Vous avez reçu ${amount} FCFA de ${senderName}. Référence transaction : ${reference}.`
+    }
+  }),
+
+  // 10. Paiement Envoyé
+  PAYMENT_SENT: (amount, recipientName, reference) => ({
+    title: 'Paiement Envoyé ✅',
+    inApp: `Votre paiement de ${amount.toLocaleString('fr-FR')} FCFA à ${recipientName} a été exécuté. Réf: ${reference}`,
+    sms: `[MoneyLink] Paiement de ${amount.toLocaleString('fr-FR')} FCFA envoyé à ${recipientName}. Réf: ${reference}`,
+    whatsapp: `✅ *Paiement Envoyé*\nMontant : *${amount.toLocaleString('fr-FR')} FCFA*\nDestinataire : *${recipientName}*\nRéférence : \`${reference}\``,
+    email: {
+      subject: `Paiement envoyé : ${amount} FCFA`,
+      text: `Votre virement de ${amount} FCFA vers ${recipientName} a bien été effectué. Référence : ${reference}.`
+    }
+  }),
+
+  // 11. Facture Créée
+  INVOICE_CREATED: (invoiceNumber, clientName, totalAmount, shareUrl) => ({
+    title: 'Nouvelle Facture Créée 📄',
+    inApp: `Facture #${invoiceNumber} générée pour ${clientName} d'un montant de ${totalAmount.toLocaleString('fr-FR')} FCFA.`,
+    sms: `[MoneyLink Facturation] Facture #${invoiceNumber} de ${totalAmount.toLocaleString('fr-FR')} FCFA prête. Consulter : ${shareUrl || 'app'}`,
+    whatsapp: `📄 *Facture MoneyLink #${invoiceNumber}*\nClient : *${clientName}*\nTotal : *${totalAmount.toLocaleString('fr-FR')} FCFA*\n\nLien de consultation :\n👉 ${shareUrl || 'Disponible dans votre espace'}`,
+    email: {
+      subject: `Facture #${invoiceNumber} générée`,
+      text: `Votre facture #${invoiceNumber} de ${totalAmount} FCFA pour ${clientName} est disponible.`
+    }
+  }),
+
+  // 12. Facture Payée
+  INVOICE_PAID: (invoiceNumber, amount, paidBy) => ({
+    title: 'Facture Payée 🎉',
+    inApp: `La facture #${invoiceNumber} de ${amount.toLocaleString('fr-FR')} FCFA a été réglée par ${paidBy}.`,
+    sms: `[MoneyLink] Facture #${invoiceNumber} (${amount.toLocaleString('fr-FR')} FCFA) réglée avec succès par ${paidBy}.`,
+    whatsapp: `🎉 *Facture #${invoiceNumber} Réglée !*\nLe montant de *${amount.toLocaleString('fr-FR')} FCFA* a été payé par *${paidBy}*.`,
+    email: {
+      subject: `Règlement reçu pour la facture #${invoiceNumber}`,
+      text: `La facture #${invoiceNumber} de ${amount} FCFA a été intégralement payée par ${paidBy}.`
+    }
+  }),
+
+  // 13. Facture Annulée
+  INVOICE_CANCELLED: (invoiceNumber, reason) => ({
+    title: 'Facture Annulée 🚫',
+    inApp: `La facture #${invoiceNumber} a été annulée. Motif : ${reason || 'Non spécifié'}`,
+    sms: `[MoneyLink] La facture #${invoiceNumber} a été annulée (${reason || 'Annulation commerçant'}).`,
+    whatsapp: `🚫 *Facture #${invoiceNumber} Annulée*\nMotif : ${reason || 'Annulation commerçant'}.`,
+    email: {
+      subject: `Annulation de la facture #${invoiceNumber}`,
+      text: `La facture #${invoiceNumber} a été annulée. Motif : ${reason || 'Non spécifié'}.`
+    }
+  }),
+
+  // 14. Alerte MoneyLink Shield
+  SHIELD_ALERT: (title, message, riskLevel) => ({
+    title: `🛡️ Alerte Shield : ${title}`,
+    inApp: `[Niveau ${riskLevel}] ${message}`,
+    sms: `[MoneyLink Shield] Alerte de sécurité (${riskLevel}) : ${message}`,
+    whatsapp: `🛡️ *MoneyLink Shield - Alerte Sécurité*\nNiveau : *${riskLevel}*\n\n${message}`,
+    email: {
+      subject: `[Alerte Sécurité MoneyLink Shield] ${title}`,
+      text: `Alerte de sécurité de niveau ${riskLevel} détectée sur votre compte : ${message}`
+    }
+  }),
+
+  // 15. Activité Inhabituelle
+  UNUSUAL_ACTIVITY: (description, ipAddress, location) => ({
+    title: 'Activité Inhabituelle Détectée ⚠️',
+    inApp: `Connexion ou tentative inhabituelle : ${description} (IP: ${ipAddress || 'inconnue'}, Lieu: ${location || 'Sénégal'})`,
+    sms: `[MoneyLink Sécurité] Activité inhabituelle détectée (${ipAddress || 'IP'}). Si ce n'est pas vous, sécurisez votre compte.`,
+    whatsapp: `⚠️ *Alerte Activité Inhabituelle*\nUne action suspecte a été relevée sur votre compte.\nIP : \`${ipAddress || 'N/A'}\`\nSi vous n'êtes pas à l'origine de cette action, modifiez votre mot de passe immédiatement.`,
+    email: {
+      subject: `Activité inhabituelle détectée sur votre compte MoneyLink`,
+      text: `Une activité inhabituelle (${description}) a été détectée depuis l'IP ${ipAddress}. Veuillez vérifier vos accès.`
+    }
+  }),
+
+  // 16. Objectif Business Atteint
+  BUSINESS_TARGET_REACHED: (monthName, revenueAchieved, targetRevenue) => ({
+    title: '🎯 Objectif Business Atteint !',
+    inApp: `Félicitations ! Votre objectif pour ${monthName} de ${targetRevenue.toLocaleString('fr-FR')} FCFA a été dépassé (${revenueAchieved.toLocaleString('fr-FR')} FCFA réalisés).`,
+    sms: `[MoneyLink Business] Bravo ! Objectif de chiffre d'affaires pour ${monthName} atteint avec ${revenueAchieved.toLocaleString('fr-FR')} FCFA.`,
+    whatsapp: `🎯 *Félicitations ! Objectif Atteint*\nVotre chiffre d'affaires pour *${monthName}* atteint *${revenueAchieved.toLocaleString('fr-FR')} FCFA* (Objectif : ${targetRevenue.toLocaleString('fr-FR')} FCFA).`,
+    email: {
+      subject: `🎯 Félicitations ! Votre objectif Business ${monthName} est atteint`,
+      text: `Vous avez réalisé ${revenueAchieved} FCFA pour un objectif initial de ${targetRevenue} FCFA. Consultez votre tableau de bord commercial.`
+    }
+  }),
+
+  // Alias compatibles
+  INVOICE_CANCELED: (invoiceNumber, reason) => NotificationTemplates.INVOICE_CANCELLED(invoiceNumber, reason),
+  BUSINESS_GOAL_REACHED: (monthName, revenueAchieved, targetRevenue) => NotificationTemplates.BUSINESS_TARGET_REACHED(monthName, revenueAchieved, targetRevenue)
 };
 
 export class NotificationDispatcher {
@@ -86,9 +190,10 @@ export class NotificationDispatcher {
   static async dispatch({
     userId,
     phone,
+    email,
     templateKey,
     params = [],
-    channels = [NotificationChannels.IN_APP, NotificationChannels.PUSH, NotificationChannels.SMS, NotificationChannels.WHATSAPP]
+    channels = [NotificationChannels.IN_APP, NotificationChannels.PUSH, NotificationChannels.SMS, NotificationChannels.WHATSAPP, NotificationChannels.EMAIL]
   }) {
     const templateBuilder = NotificationTemplates[templateKey];
     if (!templateBuilder) {
@@ -140,17 +245,26 @@ export class NotificationDispatcher {
     // 2. Canal SMS (Passerelle SMS Sénégal)
     if (phone && channels.includes(NotificationChannels.SMS)) {
       const smsMessage = content.sms;
-      // Simulation appel API Twilio / Infobip / Orange SMS
-      console.log(`📱 [GATEWAY SMS SÉNÉGAL] Vers ${phone} : "${smsMessage}"`);
+      // Journalisation sécurisée sans token/code sensible dans logs publics
+      console.log(`📱 [GATEWAY SMS SÉNÉGAL] Vers ${phone.slice(0, 7)}*** : "${smsMessage.slice(0, 40)}..."`);
       dispatchedLogs.push({ channel: 'SMS', status: 'SENT', recipient: phone, message: smsMessage });
     }
 
     // 3. Canal WhatsApp Business
     if (phone && channels.includes(NotificationChannels.WHATSAPP)) {
       const waMessage = content.whatsapp || content.sms;
-      // Simulation appel API Meta WhatsApp Cloud
-      console.log(`💬 [GATEWAY WHATSAPP BUSINESS] Vers ${phone} : \n${waMessage}`);
+      console.log(`💬 [GATEWAY WHATSAPP BUSINESS] Vers ${phone.slice(0, 7)}***`);
       dispatchedLogs.push({ channel: 'WHATSAPP', status: 'SENT', recipient: phone, message: waMessage });
+    }
+
+    // 4. Canal Email Transactionnel
+    if (email && channels.includes(NotificationChannels.EMAIL)) {
+      const emailContent = content.email || {
+        subject: content.title,
+        text: content.inApp || content.sms
+      };
+      console.log(`📧 [TRANSACTIONAL EMAIL] Vers ${email.slice(0, 3)}***@*** : "${emailContent.subject}"`);
+      dispatchedLogs.push({ channel: 'EMAIL', status: 'SENT', recipient: email, subject: emailContent.subject });
     }
 
     return {

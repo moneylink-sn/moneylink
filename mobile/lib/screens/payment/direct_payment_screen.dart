@@ -88,7 +88,7 @@ class _DirectPaymentScreenState extends State<DirectPaymentScreen> {
                 keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(
                   labelText: 'Numéro de téléphone du vendeur',
-                  hintText: '+221 77 000 00 00',
+                  hintText: '+221 77 123 45 67',
                   prefixIcon: Icon(Icons.phone_outlined),
                 ),
               ),

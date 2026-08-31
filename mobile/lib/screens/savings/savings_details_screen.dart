@@ -253,7 +253,7 @@ class _SavingsDetailsScreenState extends State<SavingsDetailsScreen> {
             TextField(
               controller: _phoneInviteController,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(hintText: '+221 77 000 00 00'),
+              decoration: const InputDecoration(hintText: '+221 77 123 45 67'),
             ),
           ],
         ),

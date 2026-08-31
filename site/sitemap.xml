@@ -3,35 +3,91 @@
   <!-- Page d'Accueil & Présentation -->
   <url>
     <loc>https://moneylink.sn/</loc>
-    <lastmod>2026-08-24</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
-  <!-- Section Séquestre & Fonctionnalités -->
+  <!-- Marketplace & Catalogue -->
+  <url>
+    <loc>https://moneylink.sn/#catalogue</loc>
+    <lastmod>2026-08-31</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <!-- Séquestre Transactionnel -->
   <url>
     <loc>https://moneylink.sn/#sequestre</loc>
-    <lastmod>2026-08-24</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
-  <!-- Section Tarifs & Abonnements -->
+  <!-- 5 Innovations -->
+  <url>
+    <loc>https://moneylink.sn/#innovations</loc>
+    <lastmod>2026-08-31</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <!-- Épargne & Coffres -->
+  <url>
+    <loc>https://moneylink.sn/#epargne</loc>
+    <lastmod>2026-08-31</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <!-- Espace Commerçants -->
+  <url>
+    <loc>https://moneylink.sn/#commercants</loc>
+    <lastmod>2026-08-31</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <!-- Espace Particuliers -->
+  <url>
+    <loc>https://moneylink.sn/#particuliers</loc>
+    <lastmod>2026-08-31</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <!-- Early Access -->
+  <url>
+    <loc>https://moneylink.sn/#early-access</loc>
+    <lastmod>2026-08-31</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <!-- Tarifs & Pass Premium -->
   <url>
     <loc>https://moneylink.sn/#tarifs</loc>
-    <lastmod>2026-08-24</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
-  <!-- Section Application Mobile -->
-  <url>
-    <loc>https://moneylink.sn/#mobile</loc>
-    <lastmod>2026-08-24</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <!-- Section Sécurité & Confiance -->
+  <!-- Sécurité & Transparence -->
   <url>
     <loc>https://moneylink.sn/#securite</loc>
-    <lastmod>2026-08-24</lastmod>
+    <lastmod>2026-08-31</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <!-- Moyens de Paiement -->
+  <url>
+    <loc>https://moneylink.sn/#paiements</loc>
+    <lastmod>2026-08-31</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <!-- FAQ -->
+  <url>
+    <loc>https://moneylink.sn/#faq</loc>
+    <lastmod>2026-08-31</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <!-- Contact -->
+  <url>
+    <loc>https://moneylink.sn/#contact</loc>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>

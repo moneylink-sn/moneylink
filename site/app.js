@@ -594,9 +594,15 @@ const Auth = {
       MerchantPortal.loadProfile();
       MerchantPortal.loadProducts();
       MerchantPortal.loadOrders();
+      BusinessModule.loadDashboard();
+      InvoiceModule.loadMerchantInvoices();
     } else {
       ClientPortal.loadOrders();
       ClientPortal.loadProfile();
+      AiModule.loadInsights();
+      AiModule.loadConversations();
+      ShieldModule.loadAlerts();
+      InvoiceModule.loadClientInvoices();
     }
   }
 };
@@ -1782,6 +1788,730 @@ const MerchantPortal = {
 };
 
 // ============================================================================
+// 10b. MODULE MONEYLINK IA (ASSISTANT & CONSEILLER FINANCIER INTELLIGENT)
+// ============================================================================
+const AiModule = {
+  async loadInsights() {
+    try {
+      const lang = window.I18n ? window.I18n.currentLang : 'fr';
+      const res = await Api.get(`/ai/insights?lang=${lang}`);
+      if (res.success && res.data) {
+        const { summary, mainAdvice, tips, alerts } = res.data;
+        const weekEl = document.getElementById('ai-kpi-spent-week');
+        const monthEl = document.getElementById('ai-kpi-spent-month');
+        const saveEl = document.getElementById('ai-kpi-savings-capacity');
+        const tipsContainer = document.getElementById('ai-tips-container');
+
+        if (weekEl) weekEl.textContent = formatFCFA(summary.spentThisWeek || 0);
+        if (monthEl) monthEl.textContent = formatFCFA(summary.spentThisMonth || 0);
+        if (saveEl) saveEl.textContent = formatFCFA(summary.estimatedSavingsCapacity || 0);
+
+        if (tipsContainer) {
+          const allNotices = [...(alerts || []), ...(tips || [])];
+          if (allNotices.length > 0) {
+            tipsContainer.innerHTML = allNotices.map(n => `
+              <div class="shield-alert-card ${n.type === 'WARNING' ? 'high' : ''}" style="margin-bottom: 8px; padding: 12px 16px;">
+                <div style="font-size: 13.5px; color: var(--text-main);">
+                  <strong>${escapeHTML(n.title)}</strong> : ${escapeHTML(n.message)}
+                </div>
+              </div>
+            `).join('');
+          } else {
+            tipsContainer.innerHTML = `
+              <div style="background: rgba(0, 168, 107, 0.08); border: 1px solid rgba(0, 168, 107, 0.2); border-radius: var(--radius-sm); padding: 12px 16px; font-size: 13.5px; color: var(--primary-dark);">
+                💡 ${escapeHTML(mainAdvice)}
+              </div>
+            `;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Erreur chargement insights IA :', err.message);
+    }
+  },
+
+  async loadConversations() {
+    const list = document.getElementById('ai-messages-list');
+    if (!list) return;
+
+    try {
+      const res = await Api.get('/ai/conversations?limit=30');
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        list.innerHTML = res.data.map(msg => `
+          <div class="ai-message ${msg.role === 'USER' ? 'user' : 'assistant'}">
+            ${msg.role === 'ASSISTANT' ? '🤖 ' : ''}${escapeHTML(msg.message)}
+          </div>
+        `).join('');
+        list.scrollTop = list.scrollHeight;
+      }
+    } catch (err) {
+      console.warn('Erreur historique IA :', err.message);
+    }
+  },
+
+  async loadMerchantConversations() {
+    const list = document.getElementById('merchant-ai-messages');
+    if (!list) return;
+
+    try {
+      const res = await Api.get('/ai/conversations?limit=30');
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        list.innerHTML = res.data.map(msg => `
+          <div class="ai-message ${msg.role === 'USER' ? 'user' : 'assistant'}">
+            ${msg.role === 'ASSISTANT' ? '🤖 ' : ''}${escapeHTML(msg.message)}
+          </div>
+        `).join('');
+        list.scrollTop = list.scrollHeight;
+      }
+    } catch (err) {
+      console.warn('Erreur historique IA Marchand :', err.message);
+    }
+  },
+
+  async askQuestion(question, isMerchant = false) {
+    if (!question || !question.trim()) return;
+
+    const list = isMerchant
+      ? document.getElementById('merchant-ai-messages')
+      : document.getElementById('ai-messages-list');
+
+    if (list) {
+      const userDiv = document.createElement('div');
+      userDiv.className = 'ai-message user';
+      userDiv.textContent = question;
+      list.appendChild(userDiv);
+
+      const botDiv = document.createElement('div');
+      botDiv.className = 'ai-message assistant';
+      botDiv.innerHTML = '🤖 <em>Analyse de vos données réelles en cours...</em>';
+      list.appendChild(botDiv);
+      list.scrollTop = list.scrollHeight;
+
+      try {
+        const lang = window.I18n ? window.I18n.currentLang : 'fr';
+        const res = await Api.post('/ai/chat', { message: question, language: lang });
+        if (res.success && res.data) {
+          botDiv.innerHTML = `🤖 ${escapeHTML(res.data.response)}`;
+          if (res.data.summary) {
+            const weekEl = document.getElementById('ai-kpi-spent-week');
+            const monthEl = document.getElementById('ai-kpi-spent-month');
+            const saveEl = document.getElementById('ai-kpi-savings-capacity');
+            if (weekEl) weekEl.textContent = formatFCFA(res.data.summary.spentThisWeek || 0);
+            if (monthEl) monthEl.textContent = formatFCFA(res.data.summary.spentThisMonth || 0);
+            if (saveEl) saveEl.textContent = formatFCFA(res.data.summary.estimatedSavingsCapacity || 0);
+          }
+        } else {
+          botDiv.textContent = 'Désolé, une erreur est survenue lors de l\'analyse.';
+        }
+      } catch (err) {
+        botDiv.textContent = `Erreur : ${err.message}`;
+      }
+      list.scrollTop = list.scrollHeight;
+    }
+  },
+
+  init() {
+    document.getElementById('ai-chat-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('ai-chat-input');
+      if (input && input.value.trim()) {
+        const q = input.value.trim();
+        input.value = '';
+        this.askQuestion(q, false);
+      }
+    });
+
+    document.getElementById('merchant-ai-chat-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('merchant-ai-input');
+      if (input && input.value.trim()) {
+        const q = input.value.trim();
+        input.value = '';
+        this.askQuestion(q, true);
+      }
+    });
+
+    document.querySelectorAll('[data-ai-prompt]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const prompt = chip.getAttribute('data-ai-prompt');
+        if (prompt) this.askQuestion(prompt, false);
+      });
+    });
+
+    document.querySelectorAll('[data-merchant-ai-prompt]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const prompt = chip.getAttribute('data-merchant-ai-prompt');
+        if (prompt) this.askQuestion(prompt, true);
+      });
+    });
+  }
+};
+
+// ============================================================================
+// 10c. MODULE MONEYLINK SHIELD (SÉCURITÉ & SCORING EXPLICABLE)
+// ============================================================================
+const ShieldModule = {
+  pendingDecisionAlertId: null,
+
+  async loadAlerts() {
+    const list = document.getElementById('client-shield-alerts-list');
+    if (!list) return;
+
+    try {
+      const res = await Api.get('/security/alerts');
+      if (res.success && Array.isArray(res.data)) {
+        if (res.data.length === 0) {
+          list.innerHTML = `
+            <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+              🛡️ Aucune alerte de sécurité suspecte détectée. Vos opérations sont 100% sécurisées.
+            </div>
+          `;
+          return;
+        }
+
+        list.innerHTML = res.data.map(alert => `
+          <div class="shield-alert-card ${alert.risk_level === 'HIGH' ? 'high' : ''}">
+            <div>
+              <div style="font-weight: 700; color: var(--secondary); font-size: 14px;">
+                ${escapeHTML(alert.title)}
+              </div>
+              <div style="font-size: 13px; color: var(--text-main); margin-top: 4px;">
+                ${escapeHTML(alert.message)}
+              </div>
+              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 6px;">
+                Score de risque : <strong>${alert.risk_score}/100</strong> (${escapeHTML(alert.risk_level)}) • ${new Date(alert.created_at).toLocaleString('fr-FR')}
+              </div>
+            </div>
+            <div>
+              ${!alert.is_acknowledged ? `
+                <button class="btn btn-primary btn-sm" onclick="ShieldModule.confirmAlert('${alert.id}', 'CONFIRMED')">
+                  Confirmer
+                </button>
+              ` : `
+                <span class="order-badge CONFIRMED" style="font-size: 11px;">Traitée</span>
+              `}
+            </div>
+          </div>
+        `).join('');
+      }
+    } catch (err) {
+      console.warn('Erreur alertes Shield :', err.message);
+    }
+  },
+
+  async analyzeBeforeAction({ amount, recipient_id, payment_method, transaction_type }) {
+    try {
+      const res = await Api.post('/security/analyze', {
+        amount,
+        recipient_id,
+        payment_method,
+        transaction_type
+      });
+
+      if (res.success && res.data) {
+        const analysis = res.data;
+        if (analysis.requiresConfirmation) {
+          return new Promise((resolve) => {
+            this.showRiskModal(analysis, resolve);
+          });
+        }
+      }
+      return true;
+    } catch (err) {
+      console.warn('Vérification Shield skip (non-bloquant) :', err.message);
+      return true;
+    }
+  },
+
+  showRiskModal(analysis, callback) {
+    this.pendingDecisionAlertId = analysis.alertId;
+    const scoreEl = document.getElementById('shield-modal-score');
+    const barEl = document.getElementById('shield-modal-bar');
+    const reasonsEl = document.getElementById('shield-modal-reasons');
+    const descEl = document.getElementById('shield-modal-desc');
+
+    if (scoreEl) scoreEl.textContent = `${analysis.riskScore} / 100`;
+    if (barEl) {
+      barEl.style.width = `${analysis.riskScore}%`;
+      barEl.className = `shield-risk-fill ${analysis.riskLevel.toLowerCase()}`;
+    }
+    if (descEl && analysis.explanationSummary) {
+      descEl.textContent = analysis.explanationSummary;
+    }
+
+    if (reasonsEl) {
+      const items = (analysis.factors && analysis.factors.length > 0)
+        ? analysis.factors.map(f => `• <strong>${escapeHTML(f.label)}</strong> : ${escapeHTML(f.detail)}`)
+        : (analysis.warnings || []).map(w => `• ${escapeHTML(w)}`);
+      reasonsEl.innerHTML = items.join('<br/>') || '• Opération inhabituelle nécessitant une confirmation explicite.';
+    }
+
+    const confirmBtn = document.getElementById('shield-btn-confirm');
+    const cancelBtn = document.getElementById('shield-btn-cancel');
+
+    const handleConfirm = async () => {
+      Modal.close('shield-confirm-modal');
+      if (this.pendingDecisionAlertId) {
+        await this.confirmAlert(this.pendingDecisionAlertId, 'CONFIRMED');
+      }
+      cleanup();
+      callback(true);
+    };
+
+    const handleCancel = async () => {
+      Modal.close('shield-confirm-modal');
+      if (this.pendingDecisionAlertId) {
+        await this.confirmAlert(this.pendingDecisionAlertId, 'CANCELLED');
+      }
+      cleanup();
+      callback(false);
+    };
+
+    const cleanup = () => {
+      confirmBtn?.removeEventListener('click', handleConfirm);
+      cancelBtn?.removeEventListener('click', handleCancel);
+    };
+
+    confirmBtn?.addEventListener('click', handleConfirm);
+    cancelBtn?.addEventListener('click', handleCancel);
+
+    Modal.open('shield-confirm-modal');
+  },
+
+  async confirmAlert(alertId, decision = 'CONFIRMED') {
+    try {
+      const res = await Api.post('/security/confirm', { alert_id: alertId, decision });
+      if (res.success) {
+        Toast.show(res.message || 'Opération confirmée.');
+        this.loadAlerts();
+      }
+    } catch (err) {
+      Toast.show(err.message, 'error');
+    }
+  },
+
+  init() {
+    // Shield initialisation
+  }
+};
+
+// ============================================================================
+// 10d. MODULE MONEYLINK BUSINESS (TABLEAU DE BORD & ANALYTICS MARCHAND)
+// ============================================================================
+const BusinessModule = {
+  async loadDashboard() {
+    try {
+      const res = await Api.get('/business/dashboard');
+      if (res.success && res.data) {
+        const { revenue, performance, aiAnalysis } = res.data;
+
+        const todayEl = document.getElementById('biz-kpi-today');
+        const weekEl = document.getElementById('biz-kpi-week');
+        const monthEl = document.getElementById('biz-kpi-month');
+        const avgEl = document.getElementById('biz-kpi-avg');
+        const bestDayEl = document.getElementById('biz-kpi-best-day');
+        const loyalEl = document.getElementById('biz-kpi-loyal');
+        const aiBox = document.getElementById('biz-ai-analysis-content');
+
+        if (todayEl) todayEl.textContent = formatFCFA(revenue.today || 0);
+        if (weekEl) weekEl.textContent = formatFCFA(revenue.week || 0);
+        if (monthEl) monthEl.textContent = formatFCFA(revenue.month || 0);
+        if (avgEl) avgEl.textContent = formatFCFA(performance.avgOrderValue || 0);
+        if (bestDayEl) bestDayEl.textContent = performance.bestDay || 'Samedi';
+        if (loyalEl) loyalEl.textContent = (performance.recurrentCustomersCount || 0).toString();
+
+        if (aiBox && Array.isArray(aiAnalysis)) {
+          aiBox.innerHTML = aiAnalysis.map(pt => `<div style="margin-bottom: 6px;">${escapeHTML(pt)}</div>`).join('');
+        }
+      }
+    } catch (err) {
+      console.warn('Erreur Dashboard Business :', err.message);
+    }
+  }
+};
+
+// ============================================================================
+// 10e. MODULE FACTURES & REÇUS NUMÉRIQUES
+// ============================================================================
+const InvoiceModule = {
+  async loadMerchantInvoices() {
+    const container = document.getElementById('merchant-invoices-table-container');
+    if (!container) return;
+
+    try {
+      const res = await Api.get('/invoices');
+      if (res.success && Array.isArray(res.data)) {
+        const invoices = res.data;
+        if (invoices.length === 0) {
+          container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: var(--text-muted); background: var(--surface-alt); border-radius: var(--radius-md);">
+              <div style="font-size: 32px; margin-bottom: 8px;">🧾</div>
+              <h4 style="color: var(--secondary); font-size: 16px;">Vous n'avez pas encore émis de facture.</h4>
+              <p style="font-size: 13.5px; margin-top: 4px;">Créez une facture professionnelle et partagez-la à vos clients sur WhatsApp.</p>
+              <button class="btn btn-primary btn-sm" style="margin-top: 14px;" onclick="InvoiceModule.openCreateModal()">
+                ➕ Créer ma première facture
+              </button>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = `
+          <div style="overflow-x: auto;">
+            <table class="merchant-products-table">
+              <thead>
+                <tr>
+                  <th>N° Facture</th>
+                  <th>Client</th>
+                  <th>Téléphone</th>
+                  <th>Date</th>
+                  <th>Montant Total</th>
+                  <th>Statut</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${invoices.map(inv => {
+                  const statusClass = inv.status === 'PAYÉE' ? 'inv-status-paid' : (inv.status === 'ENVOYÉE' ? 'inv-status-sent' : 'inv-status-draft');
+                  return `
+                    <tr>
+                      <td><strong>${escapeHTML(inv.invoice_number)}</strong></td>
+                      <td>${escapeHTML(inv.client_name)}</td>
+                      <td>${escapeHTML(inv.client_phone)}</td>
+                      <td>${new Date(inv.created_at).toLocaleDateString('fr-FR')}</td>
+                      <td><strong style="color: var(--primary);">${formatFCFA(inv.total_amount)}</strong></td>
+                      <td><span class="invoice-badge-status ${statusClass}">${escapeHTML(inv.status)}</span></td>
+                      <td style="text-align: right;">
+                        <div style="display: inline-flex; gap: 6px;">
+                          <button class="btn btn-outline btn-sm" style="background: #25D366; color: #FFFFFF; border-color: #25D366; padding: 4px 8px;" onclick="InvoiceModule.sendInvoice('${inv.id}')" title="Partager sur WhatsApp">
+                            💬
+                          </button>
+                          ${inv.status === 'PAYÉE' ? `
+                            <button class="btn btn-primary btn-sm" style="padding: 4px 8px;" onclick="InvoiceModule.showReceipt('${inv.id}')" title="Voir Reçu Officiel">
+                              🧾 Reçu
+                            </button>
+                          ` : ''}
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+    } catch (err) {
+      container.innerHTML = `<div style="color: #EF4444; padding: 20px;">Erreur chargement factures : ${escapeHTML(err.message)}</div>`;
+    }
+  },
+
+  async loadClientInvoices() {
+    const container = document.getElementById('client-invoices-list');
+    if (!container) return;
+
+    try {
+      const res = await Api.get('/invoices');
+      if (res.success && Array.isArray(res.data)) {
+        const invoices = res.data;
+        if (invoices.length === 0) {
+          container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: var(--text-muted); background: var(--surface-alt); border-radius: var(--radius-md);">
+              <div style="font-size: 32px; margin-bottom: 8px;">🧾</div>
+              <p>Aucune facture reçue pour le moment.</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = invoices.map(inv => `
+          <div class="order-card">
+            <div class="order-card-header">
+              <div>
+                <span class="order-num">Facture #${escapeHTML(inv.invoice_number)}</span>
+                <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 2px;">
+                  Émise le ${new Date(inv.created_at).toLocaleDateString('fr-FR')}${inv.due_date ? ` • Échéance : ${new Date(inv.due_date).toLocaleDateString('fr-FR')}` : ''}
+                </div>
+              </div>
+              <span class="invoice-badge-status ${inv.status === 'PAYÉE' ? 'inv-status-paid' : 'inv-status-sent'}">${escapeHTML(inv.status)}</span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border);">
+              <div style="font-size: 16px; font-weight: 800; color: var(--primary);">
+                Total : ${formatFCFA(inv.total_amount)}
+              </div>
+              <div style="display: flex; gap: 8px;">
+                ${inv.status !== 'PAYÉE' ? `
+                  <button class="btn btn-primary btn-sm" onclick="InvoiceModule.payInvoice('${inv.id}')">
+                    💳 Payer en Ligne (Wave / OM)
+                  </button>
+                ` : `
+                  <button class="btn btn-primary btn-sm" onclick="InvoiceModule.showReceipt('${inv.id}')">
+                    🧾 Voir le Reçu Officiel
+                  </button>
+                `}
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+    } catch (err) {
+      container.innerHTML = `<div style="color: #EF4444; padding: 20px;">Erreur chargement factures client : ${escapeHTML(err.message)}</div>`;
+    }
+  },
+
+  openCreateModal() {
+    document.getElementById('create-invoice-form')?.reset();
+    const container = document.getElementById('inv-items-container');
+    if (container) {
+      container.innerHTML = `
+        <div class="inv-item-row" style="display: grid; grid-template-columns: 3fr 1fr 2fr auto; gap: 8px; align-items: center;">
+          <input type="text" class="form-input inv-item-desc" placeholder="Désignation" required />
+          <input type="number" class="form-input inv-item-qty" placeholder="Qté" value="1" min="1" required />
+          <input type="number" class="form-input inv-item-price" placeholder="Prix (FCFA)" min="0" required />
+          <span class="inv-item-total" style="font-weight: 700; font-size: 13px; color: var(--primary);">0 F</span>
+        </div>
+      `;
+    }
+    this.updateTotals();
+    Modal.open('invoice-form-modal');
+  },
+
+  addItemRow() {
+    const container = document.getElementById('inv-items-container');
+    if (!container) return;
+
+    const row = document.createElement('div');
+    row.className = 'inv-item-row';
+    row.style.display = 'grid';
+    row.style.gridTemplateColumns = '3fr 1fr 2fr auto';
+    row.style.gap = '8px';
+    row.style.alignItems = 'center';
+    row.innerHTML = `
+      <input type="text" class="form-input inv-item-desc" placeholder="Désignation" required />
+      <input type="number" class="form-input inv-item-qty" placeholder="Qté" value="1" min="1" required />
+      <input type="number" class="form-input inv-item-price" placeholder="Prix (FCFA)" min="0" required />
+      <button type="button" style="background: none; border: none; color: #EF4444; cursor: pointer; font-size: 14px;" title="Supprimer la ligne">🗑️</button>
+    `;
+
+    row.querySelector('button')?.addEventListener('click', () => {
+      row.remove();
+      this.updateTotals();
+    });
+
+    container.appendChild(row);
+    this.bindRowInputs(row);
+  },
+
+  bindRowInputs(row) {
+    row.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('input', () => this.updateTotals());
+    });
+  },
+
+  updateTotals() {
+    let subtotal = 0;
+    document.querySelectorAll('#inv-items-container .inv-item-row').forEach(row => {
+      const qty = parseFloat(row.querySelector('.inv-item-qty')?.value) || 0;
+      const price = parseFloat(row.querySelector('.inv-item-price')?.value) || 0;
+      const rowTotal = qty * price;
+      subtotal += rowTotal;
+
+      const rowTotalSpan = row.querySelector('.inv-item-total');
+      if (rowTotalSpan) rowTotalSpan.textContent = formatFCFA(rowTotal);
+    });
+
+    const discount = parseFloat(document.getElementById('inv-discount')?.value) || 0;
+    const total = Math.max(0, subtotal - discount);
+
+    const totalPreview = document.getElementById('inv-total-preview');
+    if (totalPreview) totalPreview.textContent = formatFCFA(total);
+  },
+
+  async submitInvoice() {
+    const clientName = document.getElementById('inv-client-name')?.value.trim();
+    const clientPhone = document.getElementById('inv-client-phone')?.value.trim();
+    const clientEmail = document.getElementById('inv-client-email')?.value.trim();
+    const dueDate = document.getElementById('inv-due-date')?.value;
+    const clientAddress = document.getElementById('inv-client-address')?.value.trim();
+    const discountAmount = parseFloat(document.getElementById('inv-discount')?.value) || 0;
+    const notes = document.getElementById('inv-notes')?.value.trim();
+
+    const items = [];
+    document.querySelectorAll('#inv-items-container .inv-item-row').forEach(row => {
+      const desc = row.querySelector('.inv-item-desc')?.value.trim();
+      const qty = parseInt(row.querySelector('.inv-item-qty')?.value || '1', 10);
+      const price = parseFloat(row.querySelector('.inv-item-price')?.value || '0');
+      if (desc && qty > 0 && price >= 0) {
+        items.push({ description: desc, quantity: qty, unit_price: price });
+      }
+    });
+
+    if (!clientName || !clientPhone) {
+      Toast.show('Nom et téléphone du client obligatoires.', 'error');
+      return;
+    }
+
+    if (items.length === 0) {
+      Toast.show('Veuillez ajouter au moins une ligne d\'article.', 'error');
+      return;
+    }
+
+    try {
+      const res = await Api.post('/invoices', {
+        client_name: clientName,
+        client_phone: clientPhone,
+        client_email: clientEmail,
+        client_address: clientAddress,
+        due_date: dueDate,
+        discount_amount: discountAmount,
+        notes,
+        items
+      });
+
+      if (res.success && res.data) {
+        Toast.show(`Facture #${res.data.invoice_number} générée avec succès ! 🧾`, 'success');
+        Modal.close('invoice-form-modal');
+        this.loadMerchantInvoices();
+        BusinessModule.loadDashboard();
+      }
+    } catch (err) {
+      Toast.show(err.message, 'error');
+    }
+  },
+
+  async sendInvoice(invoiceId) {
+    try {
+      const res = await Api.post(`/invoices/${invoiceId}/send`);
+      if (res.success && res.data) {
+        if (res.data.whatsappLink) {
+          window.open(res.data.whatsappLink, '_blank');
+        }
+        Toast.show('Facture marquée comme envoyée. WhatsApp ouvert.', 'info');
+        this.loadMerchantInvoices();
+      }
+    } catch (err) {
+      Toast.show(err.message, 'error');
+    }
+  },
+
+  async payInvoice(invoiceId) {
+    if (!confirm('Voulez-vous régler cette facture via Wave / Orange Money ?')) return;
+    try {
+      const res = await Api.post(`/invoices/${invoiceId}/pay`, { payment_method: 'WAVE' });
+      if (res.success && res.data) {
+        Toast.show('Facture réglée avec succès ! Reçu officiel généré.', 'success');
+        this.loadClientInvoices();
+        if (res.data.receipt) {
+          this.renderReceipt(res.data.receipt);
+          Modal.open('receipt-modal');
+        }
+      }
+    } catch (err) {
+      Toast.show(err.message, 'error');
+    }
+  },
+
+  async showReceipt(receiptOrInvoiceId) {
+    try {
+      const res = await Api.get(`/receipts/${receiptOrInvoiceId}`);
+      if (res.success && res.data) {
+        this.renderReceipt(res.data);
+        Modal.open('receipt-modal');
+      }
+    } catch (err) {
+      Toast.show(err.message, 'error');
+    }
+  },
+
+  renderReceipt(receipt) {
+    const numEl = document.getElementById('rec-number-display');
+    const dateEl = document.getElementById('rec-date-display');
+    const merchEl = document.getElementById('rec-merchant-name');
+    const clientEl = document.getElementById('rec-client-name');
+    const methodEl = document.getElementById('rec-payment-method');
+    const txEl = document.getElementById('rec-tx-ref');
+    const amountEl = document.getElementById('rec-total-amount');
+    const waBtn = document.getElementById('rec-share-whatsapp-btn');
+    const copyBtn = document.getElementById('rec-copy-link-btn');
+
+    if (numEl) numEl.textContent = receipt.receipt_number || 'REC-2026-000001';
+    if (dateEl) dateEl.textContent = new Date(receipt.paid_at || receipt.created_at).toLocaleString('fr-FR');
+    if (merchEl) merchEl.textContent = receipt.merchant?.businessName || receipt.metadata?.merchant_name || 'Boutique MoneyLink';
+    if (clientEl) clientEl.textContent = receipt.client_name || 'Client Partenaire';
+    if (methodEl) methodEl.textContent = receipt.payment_method === 'WAVE' ? 'Wave Sénégal' : (receipt.payment_method === 'ORANGE_MONEY' ? 'Orange Money' : receipt.payment_method);
+    if (txEl) txEl.textContent = receipt.transaction_reference || 'REF-TX-0000';
+    if (amountEl) amountEl.textContent = formatFCFA(receipt.amount || 0);
+
+    const shareUrl = `https://moneylink.sn/receipts/view?token=${receipt.share_token || receipt.id}`;
+    if (waBtn) {
+      const waMsg = encodeURIComponent(`🧾 *Reçu Numérique MoneyLink N° ${receipt.receipt_number}*\nMontant réglé : *${formatFCFA(receipt.amount)}*\nCommerçant : *${receipt.merchant?.businessName || 'Boutique'}*\nLien sécurisé : ${shareUrl}`);
+      waBtn.href = `https://wa.me/?text=${waMsg}`;
+    }
+
+    if (copyBtn) {
+      copyBtn.onclick = () => {
+        navigator.clipboard.writeText(shareUrl);
+        Toast.show('Lien du reçu copié dans le presse-papier ! 🔗');
+      };
+    }
+  },
+
+  init() {
+    document.getElementById('open-new-invoice-btn')?.addEventListener('click', () => this.openCreateModal());
+    document.getElementById('inv-add-row-btn')?.addEventListener('click', () => this.addItemRow());
+    document.getElementById('inv-discount')?.addEventListener('input', () => this.updateTotals());
+    document.getElementById('create-invoice-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.submitInvoice();
+    });
+
+    const initialRow = document.querySelector('#inv-items-container .inv-item-row');
+    if (initialRow) this.bindRowInputs(initialRow);
+  }
+};
+
+// ============================================================================
+// 10f. MODULE LOCALISATION & INTERNATIONALISATION (I18N)
+// ============================================================================
+const I18nModule = {
+  init() {
+    if (window.I18n) {
+      window.I18n.init();
+    }
+
+    const menuBtn = document.getElementById('lang-menu-btn');
+    const popover = document.getElementById('lang-menu-popover');
+
+    if (menuBtn && popover) {
+      menuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        popover.classList.toggle('active');
+      });
+
+      document.addEventListener('click', () => popover.classList.remove('active'));
+    }
+
+    document.querySelectorAll('.lang-option-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const lang = btn.getAttribute('data-lang');
+        if (window.I18n && lang) {
+          window.I18n.setLanguage(lang);
+          popover?.classList.remove('active');
+          Toast.show(lang === 'wo' ? '🇸🇳 Làkku Wolof duggal nañu ko !' : '🇫🇷 Langue changée en Français !', 'info');
+        }
+      });
+    });
+
+    window.addEventListener('moneylink:languageChanged', (e) => {
+      if (AppState.user) {
+        AiModule.loadInsights();
+      }
+    });
+  }
+};
+
+// ============================================================================
 // 11. GESTION DES MODALES & DIALOGUES INTERACTIFS
 // ============================================================================
 const Modal = {
@@ -1815,14 +2545,21 @@ const Modal = {
 // 12. INITIALISATION & GESTIONNAIRES D'ÉVÉNEMENTS DOM
 // ============================================================================
 document.addEventListener('DOMContentLoaded', () => {
+  I18nModule.init();
   Tracker.init();
   Auth.init();
   Catalog.init();
   Cart.init();
   Modal.init();
+  AiModule.init();
+  ShieldModule.init();
+  InvoiceModule.init();
   initApiStatusCheck();
+  initPaymentMethodsStatus();
+  initEcosystemStats();
   initEscrowCalculator();
   initFaqAccordion();
+  initHashRouter();
   setupFormHandlers();
 });
 
@@ -2015,19 +2752,170 @@ function setupFormHandlers() {
   });
 
   // 11. Boutons d'actualisation & Onglets Portails
-  document.getElementById('client-refresh-orders-btn')?.addEventListener('click', () => ClientPortal.loadOrders());
+  document.getElementById('client-refresh-orders-btn')?.addEventListener('click', () => {
+    ClientPortal.loadOrders();
+    ClientPortal.loadProfile();
+    AiModule.loadInsights();
+    AiModule.loadConversations();
+    ShieldModule.loadAlerts();
+    InvoiceModule.loadClientInvoices();
+  });
+
   document.getElementById('merchant-refresh-btn')?.addEventListener('click', () => {
     MerchantPortal.loadStats();
     MerchantPortal.loadProfile();
     MerchantPortal.loadProducts();
     MerchantPortal.loadOrders();
+    BusinessModule.loadDashboard();
+    InvoiceModule.loadMerchantInvoices();
+    AiModule.loadMerchantConversations();
   });
+
   document.getElementById('merchant-add-product-btn')?.addEventListener('click', () => MerchantPortal.openAddProductModal());
   document.getElementById('merchant-new-prod-btn-2')?.addEventListener('click', () => MerchantPortal.openAddProductModal());
 
-  document.querySelectorAll('.portal-tab-btn').forEach(btn => {
+  // 12. CTAs Hero & Audience V2.5
+  document.getElementById('hero-create-acc-btn')?.addEventListener('click', () => {
+    Modal.open('auth-modal');
+    const clientTab = document.querySelector('[data-auth-tab="register-client-tab"]');
+    if (clientTab) clientTab.click();
+  });
+
+  document.getElementById('cta-section-merchant-btn')?.addEventListener('click', () => {
+    Modal.open('auth-modal');
+    const merchTab = document.querySelector('[data-auth-tab="register-merchant-tab"]');
+    if (merchTab) merchTab.click();
+  });
+
+  document.getElementById('cta-section-client-btn')?.addEventListener('click', () => {
+    Modal.open('auth-modal');
+    const clientTab = document.querySelector('[data-auth-tab="register-client-tab"]');
+    if (clientTab) clientTab.click();
+  });
+
+  // 13. Formulaire Early Access V2.5
+  document.getElementById('early-access-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const submitBtn = document.getElementById('ea-submit-btn');
+    const profileRadio = document.querySelector('input[name="ea_profile_type"]:checked');
+
+    const payload = {
+      first_name: document.getElementById('ea-fname').value.trim(),
+      last_name: document.getElementById('ea-lname').value.trim(),
+      phone: document.getElementById('ea-phone').value.trim(),
+      email: document.getElementById('ea-email').value.trim(),
+      profile_type: profileRadio ? profileRadio.value : 'PARTICULIER',
+      city: document.getElementById('ea-city').value.trim(),
+      honeypot: document.getElementById('ea-honeypot')?.value || ''
+    };
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = 'Envoi en cours... ⏳';
+    }
+
+    try {
+      const res = await Api.post('/early-access', payload);
+      if (res.success) {
+        Toast.show(res.message || 'Bienvenue dans l’Early Access MoneyLink !', 'success');
+        document.getElementById('early-access-form').reset();
+        initEcosystemStats();
+      }
+    } catch (err) {
+      Toast.show(err.message, 'error');
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Rejoindre MoneyLink 🚀';
+      }
+    }
+  });
+
+  // 14. Formulaire Contact V2.5
+  document.getElementById('contact-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const submitBtn = document.getElementById('contact-submit-btn');
+
+    const payload = {
+      name: document.getElementById('contact-name').value.trim(),
+      email: document.getElementById('contact-email').value.trim(),
+      phone: document.getElementById('contact-phone').value.trim() || undefined,
+      category: document.getElementById('contact-category').value,
+      subject: document.getElementById('contact-subject').value.trim(),
+      message: document.getElementById('contact-message').value.trim(),
+      honeypot: document.getElementById('contact-honeypot')?.value || ''
+    };
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = 'Envoi en cours... ⏳';
+    }
+
+    try {
+      const res = await Api.post('/contact', payload);
+      if (res.success) {
+        Toast.show(res.message || 'Message transmis avec succès !', 'success');
+        document.getElementById('contact-form').reset();
+      }
+    } catch (err) {
+      Toast.show(err.message, 'error');
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Envoyer le message ✉️';
+      }
+    }
+  });
+
+  // 15. Liens Modales Légales
+  document.getElementById('link-legal-terms')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    Modal.open('modal-terms');
+  });
+
+  document.getElementById('link-legal-privacy')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    Modal.open('modal-privacy');
+  });
+
+  document.getElementById('link-legal-cookies')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    Modal.open('modal-cookies');
+  });
+
+  document.getElementById('link-legal-notice')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    Modal.open('modal-legal');
+  });
+
+  // Onglets Espace Client
+  document.querySelectorAll('#client-portal-tabs .portal-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.portal-tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#client-portal-tabs .portal-tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const targetTab = btn.getAttribute('data-client-tab');
+
+      document.querySelectorAll('.client-tab-content').forEach(c => c.style.display = 'none');
+      const targetContent = document.getElementById(targetTab);
+      if (targetContent) targetContent.style.display = 'block';
+
+      if (targetTab === 'client-ai-tab') {
+        AiModule.loadInsights();
+        AiModule.loadConversations();
+      } else if (targetTab === 'client-shield-tab') {
+        ShieldModule.loadAlerts();
+      } else if (targetTab === 'client-invoices-tab') {
+        InvoiceModule.loadClientInvoices();
+      } else if (targetTab === 'client-orders-tab') {
+        ClientPortal.loadOrders();
+      }
+    });
+  });
+
+  // Onglets Espace Marchand
+  document.querySelectorAll('#merchant-portal-tabs .portal-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#merchant-portal-tabs .portal-tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const tabTarget = btn.getAttribute('data-tab');
 
@@ -2037,6 +2925,16 @@ function setupFormHandlers() {
 
       if (tabTarget === 'merchant-profile-tab') {
         MerchantPortal.loadProfile();
+      } else if (tabTarget === 'merchant-business-tab') {
+        BusinessModule.loadDashboard();
+      } else if (tabTarget === 'merchant-invoices-tab') {
+        InvoiceModule.loadMerchantInvoices();
+      } else if (tabTarget === 'merchant-ai-tab') {
+        AiModule.loadMerchantConversations();
+      } else if (tabTarget === 'merchant-products-tab') {
+        MerchantPortal.loadProducts();
+      } else if (tabTarget === 'merchant-orders-tab') {
+        MerchantPortal.loadOrders();
       }
     });
   });
@@ -2151,4 +3049,88 @@ function escapeHTML(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// ============================================================================
+// 14. NOUVELLES FONCTIONS V2.5 LAUNCH EDITION
+// ============================================================================
+
+/**
+ * Récupère dynamiquement le statut réel des moyens de paiement (Wave, OM, Free)
+ */
+async function initPaymentMethodsStatus() {
+  try {
+    const res = await Api.get('/public/payment-methods');
+    if (res.success && res.data && Array.isArray(res.data.methods)) {
+      const waveMethod = res.data.methods.find(m => m.code === 'WAVE');
+      const omMethod = res.data.methods.find(m => m.code === 'ORANGE_MONEY');
+
+      const waveBadge = document.getElementById('badge-wave-status');
+      if (waveBadge && waveMethod) {
+        waveBadge.textContent = waveMethod.status_label || '🔵 Sandbox';
+        waveBadge.className = `payment-badge-status badge-status-${waveMethod.status.toLowerCase().replace('_', '-')}`;
+      }
+
+      const omBadge = document.getElementById('badge-om-status');
+      if (omBadge && omMethod) {
+        omBadge.textContent = omMethod.status_label || '🔵 Sandbox';
+        omBadge.className = `payment-badge-status badge-status-${omMethod.status.toLowerCase().replace('_', '-')}`;
+      }
+    }
+  } catch (err) {
+    console.warn('[Payment Status Check Warning]', err.message);
+  }
+}
+
+/**
+ * Récupère les métriques réelles de la base pour le bloc de transparence
+ */
+async function initEcosystemStats() {
+  try {
+    const res = await Api.get('/public/ecosystem-stats');
+    if (res.success && res.data) {
+      const mEl = document.getElementById('metric-merchants');
+      const pEl = document.getElementById('metric-products');
+      const oEl = document.getElementById('metric-orders');
+      const eaEl = document.getElementById('metric-early-access');
+
+      if (mEl) mEl.textContent = res.data.active_merchants || '0';
+      if (pEl) pEl.textContent = res.data.active_products || '0';
+      if (oEl) oEl.textContent = res.data.total_orders || '0';
+      if (eaEl) eaEl.textContent = res.data.early_access_users || '0';
+    }
+  } catch (err) {
+    console.warn('[Ecosystem Stats Warning]', err.message);
+  }
+}
+
+/**
+ * Gestion du routage hash pour affichage direct des modales et sections
+ */
+function initHashRouter() {
+  function handleHash() {
+    const hash = window.location.hash;
+    if (!hash) return;
+
+    if (hash === '#conditions') {
+      Modal.open('modal-terms');
+    } else if (hash === '#confidentialite') {
+      Modal.open('modal-privacy');
+    } else if (hash === '#cookies') {
+      Modal.open('modal-cookies');
+    } else if (hash === '#mentions-legales') {
+      Modal.open('modal-legal');
+    } else if (hash === '#early-access') {
+      document.getElementById('early-access')?.scrollIntoView({ behavior: 'smooth' });
+    } else if (hash === '#contact') {
+      document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
+    } else if (hash === '#securite') {
+      document.getElementById('securite')?.scrollIntoView({ behavior: 'smooth' });
+    } else if (hash === '#paiements') {
+      document.getElementById('paiements')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
+  window.addEventListener('hashchange', handleHash);
+  handleHash();
 }

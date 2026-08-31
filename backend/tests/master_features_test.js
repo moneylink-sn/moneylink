@@ -135,13 +135,13 @@ async function runMasterTests() {
     });
     assert(invalidTokenAttempt.status === 401, 'Accès avec token invalide REFUSÉ (401)');
 
-    // Vérification isolation numéro personnel (+221 76 611 12 39)
+    // Vérification isolation numéro personnel (+221 70 608 21 20)
     const merchantsListRes = await request('/admin/users', {
       headers: { Authorization: `Bearer ${adminToken}` }
     });
     assert(merchantsListRes.status === 200, 'Liste des utilisateurs récupérée');
     const allUsers = merchantsListRes.data.data;
-    const adminPersonalPhone = '766111239';
+    const adminPersonalPhone = '706082120';
     const foundAdminAsMerchant = allUsers.some(u => u.role === 'MERCHANT' && (u.phone || '').replace(/[^0-9]/g, '').includes(adminPersonalPhone));
     assert(!foundAdminAsMerchant, 'Isolation stricte : Le numéro personnel de l’admin n’est JAMAIS utilisé comme numéro marchand');
 

@@ -268,3 +268,132 @@ CREATE TABLE analytics_events (
 CREATE INDEX idx_analytics_events_type ON analytics_events(event_type);
 CREATE INDEX idx_analytics_events_session_id ON analytics_events(session_id);
 CREATE INDEX idx_analytics_events_created_at ON analytics_events(created_at DESC);
+
+-- ============================================================================
+-- MONEYLINK V2 — TABLES INNOVANTES (SQLite)
+-- ============================================================================
+
+CREATE TABLE ai_conversations (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL DEFAULT 'USER',
+    message TEXT NOT NULL,
+    intent TEXT DEFAULT 'GENERAL',
+    context_data TEXT DEFAULT '{}',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_ai_conversations_user_id ON ai_conversations(user_id);
+CREATE INDEX idx_ai_conversations_created_at ON ai_conversations(created_at DESC);
+
+CREATE TABLE security_events (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_type TEXT NOT NULL,
+    severity TEXT NOT NULL DEFAULT 'LOW',
+    risk_score INTEGER NOT NULL DEFAULT 0,
+    details TEXT DEFAULT '{}',
+    ip_address TEXT,
+    status TEXT NOT NULL DEFAULT 'LOGGED',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_security_events_user_id ON security_events(user_id);
+CREATE INDEX idx_security_events_created_at ON security_events(created_at DESC);
+
+CREATE TABLE security_alerts (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    transaction_id TEXT,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    risk_score INTEGER NOT NULL DEFAULT 0,
+    risk_level TEXT NOT NULL DEFAULT 'LOW',
+    is_acknowledged INTEGER NOT NULL DEFAULT 0,
+    action_taken TEXT DEFAULT 'PENDING',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_security_alerts_user_id ON security_alerts(user_id);
+CREATE INDEX idx_security_alerts_is_acknowledged ON security_alerts(is_acknowledged);
+
+CREATE TABLE business_profiles (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    merchant_id TEXT REFERENCES merchants(id) ON DELETE CASCADE,
+    business_category TEXT,
+    tax_id TEXT,
+    currency TEXT DEFAULT 'XOF',
+    monthly_target REAL DEFAULT 0.0,
+    settings TEXT DEFAULT '{}',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_business_profiles_user_id ON business_profiles(user_id);
+
+CREATE TABLE invoices (
+    id TEXT PRIMARY KEY,
+    invoice_number TEXT UNIQUE NOT NULL,
+    merchant_id TEXT NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
+    client_id TEXT REFERENCES users(id),
+    client_name TEXT NOT NULL,
+    client_phone TEXT NOT NULL,
+    client_email TEXT,
+    client_address TEXT,
+    subtotal REAL NOT NULL DEFAULT 0.0,
+    discount_amount REAL NOT NULL DEFAULT 0.0,
+    total_amount REAL NOT NULL DEFAULT 0.0,
+    paid_amount REAL NOT NULL DEFAULT 0.0,
+    currency TEXT NOT NULL DEFAULT 'XOF',
+    status TEXT NOT NULL DEFAULT 'BROUILLON',
+    issue_date DATE DEFAULT CURRENT_DATE,
+    due_date DATE,
+    notes TEXT,
+    share_token TEXT UNIQUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_invoices_invoice_number ON invoices(invoice_number);
+CREATE INDEX idx_invoices_merchant_id ON invoices(merchant_id);
+CREATE INDEX idx_invoices_share_token ON invoices(share_token);
+
+CREATE TABLE invoice_items (
+    id TEXT PRIMARY KEY,
+    invoice_id TEXT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+    product_id TEXT REFERENCES products(id),
+    description TEXT NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    unit_price REAL NOT NULL DEFAULT 0.0,
+    total_price REAL NOT NULL DEFAULT 0.0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_invoice_items_invoice_id ON invoice_items(invoice_id);
+
+CREATE TABLE receipts (
+    id TEXT PRIMARY KEY,
+    receipt_number TEXT UNIQUE NOT NULL,
+    invoice_id TEXT REFERENCES invoices(id),
+    order_id TEXT REFERENCES orders(id),
+    merchant_id TEXT NOT NULL REFERENCES merchants(id),
+    client_id TEXT REFERENCES users(id),
+    client_name TEXT NOT NULL,
+    client_phone TEXT,
+    amount REAL NOT NULL DEFAULT 0.0,
+    currency TEXT NOT NULL DEFAULT 'XOF',
+    payment_method TEXT NOT NULL DEFAULT 'WAVE',
+    transaction_reference TEXT,
+    status TEXT NOT NULL DEFAULT 'COMPLETED',
+    paid_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    share_token TEXT UNIQUE,
+    metadata TEXT DEFAULT '{}',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_receipts_receipt_number ON receipts(receipt_number);
+CREATE INDEX idx_receipts_merchant_id ON receipts(merchant_id);
+CREATE INDEX idx_receipts_share_token ON receipts(share_token);
+

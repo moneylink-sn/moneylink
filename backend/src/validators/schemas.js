@@ -147,3 +147,49 @@ export const resolveDisputeSchema = z.object({
   }),
   notes: z.string().optional()
 });
+
+export const kycSubmitSchema = z.object({
+  legal_business_name: z.string().min(2, 'Le nom commercial ou raison sociale est requis'),
+  registration_number_ninea: z.string().optional(),
+  document_type: z.enum(['NATIONAL_ID', 'PASSPORT', 'COMMERCE_REGISTER', 'DRIVING_LICENSE']).default('NATIONAL_ID'),
+  document_url: z.string().optional()
+});
+
+export const kycReviewSchema = z.object({
+  status: z.enum(['VERIFIED', 'REJECTED', 'SUSPENDED'], {
+    errorMap: () => ({ message: 'Statut de vérification invalide (VERIFIED, REJECTED ou SUSPENDED attendu)' })
+  }),
+  rejection_reason: z.string().optional()
+});
+
+export const earlyAccessSchema = z.object({
+  first_name: z.string().min(2, 'Le prénom doit comporter au moins 2 caractères'),
+  last_name: z.string().min(2, 'Le nom de famille doit comporter au moins 2 caractères'),
+  phone: z.string().min(8, 'Numéro de téléphone requis (+221...)'),
+  email: z.string().email('Adresse e-mail valide requise'),
+  profile_type: z.enum(['PARTICULIER', 'COMMERCANT', 'ENTREPRENEUR']).default('PARTICULIER'),
+  city: z.string().min(2, 'Ville requise (ex: Dakar, Thiès, Touba...)'),
+  notes: z.string().optional(),
+  honeypot: z.string().optional()
+});
+
+export const contactSchema = z.object({
+  name: z.string().min(2, 'Nom complet requis'),
+  email: z.string().email('Adresse e-mail valide requise'),
+  phone: z.string().optional(),
+  category: z.enum([
+    'SUPPORT',
+    'PAIEMENT',
+    'SEQUESTRE',
+    'COMPTE',
+    'COMMERCANT',
+    'FACTURE',
+    'BUG',
+    'PARTENARIAT',
+    'AUTRE'
+  ]).default('SUPPORT'),
+  subject: z.string().min(3, 'Le sujet doit comporter au moins 3 caractères'),
+  message: z.string().min(10, 'Le message doit comporter au moins 10 caractères'),
+  honeypot: z.string().optional()
+});
+

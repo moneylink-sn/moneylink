@@ -95,7 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(
-                  hintText: '+221 77 000 00 00',
+                  hintText: '+221 77 123 45 67',
                   prefixIcon: Icon(Icons.phone_outlined, color: AppConstants.textSecondary),
                 ),
               ),

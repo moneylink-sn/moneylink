@@ -35,10 +35,21 @@ export let isPostgresConnected = false;
 let coreTablesInitialized = false;
 let deliveryPersonsInitialized = false;
 let analyticsEventsInitialized = false;
+let v2TablesInitialized = false;
 
 // Stockage mémoire de secours (initialisé avec les seeds de démo) pour tests et développement local autonome
 export const memoryStore = JSON.parse(JSON.stringify(initialSeedData));
 if (!memoryStore.media_uploads) memoryStore.media_uploads = [];
+if (!memoryStore.business_profiles) memoryStore.business_profiles = initialSeedData.business_profiles || [];
+if (!memoryStore.invoices) memoryStore.invoices = initialSeedData.invoices || [];
+if (!memoryStore.invoice_items) memoryStore.invoice_items = initialSeedData.invoice_items || [];
+if (!memoryStore.receipts) memoryStore.receipts = initialSeedData.receipts || [];
+if (!memoryStore.security_events) memoryStore.security_events = initialSeedData.security_events || [];
+if (!memoryStore.security_alerts) memoryStore.security_alerts = initialSeedData.security_alerts || [];
+if (!memoryStore.ai_conversations) memoryStore.ai_conversations = initialSeedData.ai_conversations || [];
+if (!memoryStore.merchant_verifications) memoryStore.merchant_verifications = [];
+if (!memoryStore.early_access_leads) memoryStore.early_access_leads = [];
+if (!memoryStore.contact_messages) memoryStore.contact_messages = [];
 
 // Initialisation réelle du Pool PostgreSQL
 if (process.env.DATABASE_URL && process.env.USE_SQLITE !== 'true') {
@@ -355,6 +366,27 @@ export async function ensureCoreTables(client) {
 
       CREATE INDEX IF NOT EXISTS idx_media_uploads_user_id ON media_uploads(user_id);
       CREATE INDEX IF NOT EXISTS idx_media_uploads_created_at ON media_uploads(created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS merchant_verifications (
+          id TEXT PRIMARY KEY,
+          merchant_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          legal_business_name TEXT NOT NULL,
+          registration_number_ninea TEXT,
+          document_type TEXT NOT NULL DEFAULT 'NATIONAL_ID',
+          document_url TEXT,
+          status TEXT NOT NULL DEFAULT 'PENDING',
+          rejection_reason TEXT,
+          reviewed_by TEXT,
+          reviewed_at TIMESTAMPTZ,
+          submitted_at TIMESTAMPTZ DEFAULT NOW(),
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_merchant_verifications_merchant_id ON merchant_verifications(merchant_id);
+      CREATE INDEX IF NOT EXISTS idx_merchant_verifications_user_id ON merchant_verifications(user_id);
+      CREATE INDEX IF NOT EXISTS idx_merchant_verifications_status ON merchant_verifications(status);
     `);
     coreTablesInitialized = true;
   } catch (err) {
@@ -491,6 +523,188 @@ export async function ensureAnalyticsEventsTable(client) {
     analyticsEventsInitialized = true;
   } catch (err) {
     console.warn('⚠️ Avertissement initialisation non-destructive analytics_events :', err.message);
+  }
+}
+
+/**
+ * Assure la présence non-destructive de toutes les tables MoneyLink V2 (IA, Shield, Business, Factures & Reçus)
+ */
+export async function ensureV2Tables(client) {
+  if (v2TablesInitialized) return;
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ai_conversations (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'USER',
+          message TEXT NOT NULL,
+          intent TEXT DEFAULT 'GENERAL',
+          context_data JSONB DEFAULT '{}'::jsonb,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_ai_conversations_user_id ON ai_conversations(user_id);
+      CREATE INDEX IF NOT EXISTS idx_ai_conversations_created_at ON ai_conversations(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_ai_conversations_intent ON ai_conversations(intent);
+
+      CREATE TABLE IF NOT EXISTS security_events (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          event_type TEXT NOT NULL,
+          severity TEXT NOT NULL DEFAULT 'LOW',
+          risk_score INTEGER NOT NULL DEFAULT 0,
+          details JSONB DEFAULT '{}'::jsonb,
+          ip_address TEXT,
+          status TEXT NOT NULL DEFAULT 'LOGGED',
+          created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_security_events_user_id ON security_events(user_id);
+      CREATE INDEX IF NOT EXISTS idx_security_events_severity ON security_events(severity);
+      CREATE INDEX IF NOT EXISTS idx_security_events_created_at ON security_events(created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS security_alerts (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          transaction_id TEXT,
+          title TEXT NOT NULL,
+          message TEXT NOT NULL,
+          risk_score INTEGER NOT NULL DEFAULT 0,
+          risk_level TEXT NOT NULL DEFAULT 'LOW',
+          is_acknowledged BOOLEAN NOT NULL DEFAULT FALSE,
+          action_taken TEXT DEFAULT 'PENDING',
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_security_alerts_user_id ON security_alerts(user_id);
+      CREATE INDEX IF NOT EXISTS idx_security_alerts_risk_level ON security_alerts(risk_level);
+      CREATE INDEX IF NOT EXISTS idx_security_alerts_is_acknowledged ON security_alerts(is_acknowledged);
+
+      CREATE TABLE IF NOT EXISTS business_profiles (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL UNIQUE,
+          merchant_id TEXT,
+          business_category TEXT,
+          tax_id TEXT,
+          currency TEXT DEFAULT 'XOF',
+          monthly_target NUMERIC DEFAULT 0.00,
+          settings JSONB DEFAULT '{}'::jsonb,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_business_profiles_user_id ON business_profiles(user_id);
+      CREATE INDEX IF NOT EXISTS idx_business_profiles_merchant_id ON business_profiles(merchant_id);
+
+      CREATE TABLE IF NOT EXISTS invoices (
+          id TEXT PRIMARY KEY,
+          invoice_number TEXT UNIQUE NOT NULL,
+          merchant_id TEXT NOT NULL,
+          client_id TEXT,
+          client_name TEXT NOT NULL,
+          client_phone TEXT NOT NULL,
+          client_email TEXT,
+          client_address TEXT,
+          subtotal NUMERIC NOT NULL DEFAULT 0.00,
+          discount_amount NUMERIC NOT NULL DEFAULT 0.00,
+          total_amount NUMERIC NOT NULL DEFAULT 0.00,
+          paid_amount NUMERIC NOT NULL DEFAULT 0.00,
+          currency TEXT NOT NULL DEFAULT 'XOF',
+          status TEXT NOT NULL DEFAULT 'BROUILLON',
+          issue_date DATE NOT NULL DEFAULT CURRENT_DATE,
+          due_date DATE,
+          notes TEXT,
+          share_token TEXT UNIQUE,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_invoices_invoice_number ON invoices(invoice_number);
+      CREATE INDEX IF NOT EXISTS idx_invoices_merchant_id ON invoices(merchant_id);
+      CREATE INDEX IF NOT EXISTS idx_invoices_client_id ON invoices(client_id);
+      CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
+      CREATE INDEX IF NOT EXISTS idx_invoices_share_token ON invoices(share_token);
+      CREATE INDEX IF NOT EXISTS idx_invoices_created_at ON invoices(created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS invoice_items (
+          id TEXT PRIMARY KEY,
+          invoice_id TEXT NOT NULL,
+          product_id TEXT,
+          description TEXT NOT NULL,
+          quantity INTEGER NOT NULL DEFAULT 1,
+          unit_price NUMERIC NOT NULL DEFAULT 0.00,
+          total_price NUMERIC NOT NULL DEFAULT 0.00,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_id ON invoice_items(invoice_id);
+      CREATE INDEX IF NOT EXISTS idx_invoice_items_product_id ON invoice_items(product_id);
+
+      CREATE TABLE IF NOT EXISTS receipts (
+          id TEXT PRIMARY KEY,
+          receipt_number TEXT UNIQUE NOT NULL,
+          invoice_id TEXT,
+          order_id TEXT,
+          merchant_id TEXT NOT NULL,
+          client_id TEXT,
+          client_name TEXT NOT NULL,
+          client_phone TEXT,
+          amount NUMERIC NOT NULL DEFAULT 0.00,
+          currency TEXT NOT NULL DEFAULT 'XOF',
+          payment_method TEXT NOT NULL DEFAULT 'WAVE',
+          transaction_reference TEXT,
+          status TEXT NOT NULL DEFAULT 'COMPLETED',
+          paid_at TIMESTAMPTZ DEFAULT NOW(),
+          share_token TEXT UNIQUE,
+          metadata JSONB DEFAULT '{}'::jsonb,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_receipts_receipt_number ON receipts(receipt_number);
+      CREATE INDEX IF NOT EXISTS idx_receipts_merchant_id ON receipts(merchant_id);
+      CREATE INDEX IF NOT EXISTS idx_receipts_invoice_id ON receipts(invoice_id);
+      CREATE INDEX IF NOT EXISTS idx_receipts_order_id ON receipts(order_id);
+      CREATE INDEX IF NOT EXISTS idx_receipts_share_token ON receipts(share_token);
+      CREATE INDEX IF NOT EXISTS idx_receipts_created_at ON receipts(created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS early_access_leads (
+          id TEXT PRIMARY KEY,
+          first_name TEXT NOT NULL,
+          last_name TEXT NOT NULL,
+          phone TEXT NOT NULL,
+          email TEXT NOT NULL,
+          profile_type TEXT DEFAULT 'PARTICULIER',
+          city TEXT NOT NULL,
+          notes TEXT,
+          status TEXT DEFAULT 'REGISTERED',
+          created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_early_access_phone ON early_access_leads(phone);
+      CREATE INDEX IF NOT EXISTS idx_early_access_email ON early_access_leads(email);
+      CREATE INDEX IF NOT EXISTS idx_early_access_created_at ON early_access_leads(created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS contact_messages (
+          id TEXT PRIMARY KEY,
+          ticket_number TEXT UNIQUE NOT NULL,
+          name TEXT NOT NULL,
+          email TEXT NOT NULL,
+          phone TEXT,
+          category TEXT DEFAULT 'SUPPORT',
+          subject TEXT NOT NULL,
+          message TEXT NOT NULL,
+          status TEXT DEFAULT 'OPEN',
+          created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_contact_messages_ticket ON contact_messages(ticket_number);
+      CREATE INDEX IF NOT EXISTS idx_contact_messages_category ON contact_messages(category);
+      CREATE INDEX IF NOT EXISTS idx_contact_messages_created_at ON contact_messages(created_at DESC);
+    `);
+    v2TablesInitialized = true;
+  } catch (err) {
+    console.warn('⚠️ Avertissement initialisation non-destructive tables V2 :', err.message);
   }
 }
 
@@ -681,6 +895,102 @@ export async function seedTablesIfEmpty(client) {
       `, [
         n.id, n.user_id, n.title, n.message, n.type, JSON.stringify(n.payload || {}), n.is_read || false,
         n.channel || 'PUSH', n.created_at || new Date().toISOString()
+      ]);
+    }
+
+    // Seeds V2 : Business Profiles
+    for (const bp of (initialSeedData.business_profiles || [])) {
+      await client.query(`
+        INSERT INTO business_profiles (id, user_id, merchant_id, business_category, tax_id, currency, monthly_target, settings, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        ON CONFLICT (id) DO NOTHING
+      `, [
+        bp.id, bp.user_id, bp.merchant_id, bp.business_category, bp.tax_id, bp.currency || 'XOF',
+        bp.monthly_target || 0, JSON.stringify(bp.settings || {}), bp.created_at || new Date().toISOString(), bp.updated_at || new Date().toISOString()
+      ]);
+    }
+
+    // Seeds V2 : Invoices & Invoice Items
+    for (const inv of (initialSeedData.invoices || [])) {
+      await client.query(`
+        INSERT INTO invoices (
+          id, invoice_number, merchant_id, client_id, client_name, client_phone, client_email,
+          client_address, subtotal, discount_amount, total_amount, paid_amount, currency,
+          status, issue_date, due_date, notes, share_token, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        ON CONFLICT (id) DO NOTHING
+      `, [
+        inv.id, inv.invoice_number, inv.merchant_id, inv.client_id || null, inv.client_name,
+        inv.client_phone, inv.client_email || null, inv.client_address || '', inv.subtotal,
+        inv.discount_amount || 0, inv.total_amount, inv.paid_amount || 0, inv.currency || 'XOF',
+        inv.status || 'BROUILLON', inv.issue_date, inv.due_date || null, inv.notes || '',
+        inv.share_token, inv.created_at || new Date().toISOString(), inv.updated_at || new Date().toISOString()
+      ]);
+    }
+
+    for (const item of (initialSeedData.invoice_items || [])) {
+      await client.query(`
+        INSERT INTO invoice_items (id, invoice_id, product_id, description, quantity, unit_price, total_price, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (id) DO NOTHING
+      `, [
+        item.id, item.invoice_id, item.product_id || null, item.description, item.quantity || 1,
+        item.unit_price || 0, item.total_price || 0, item.created_at || new Date().toISOString()
+      ]);
+    }
+
+    // Seeds V2 : Receipts
+    for (const rec of (initialSeedData.receipts || [])) {
+      await client.query(`
+        INSERT INTO receipts (
+          id, receipt_number, invoice_id, order_id, merchant_id, client_id, client_name,
+          client_phone, amount, currency, payment_method, transaction_reference, status,
+          paid_at, share_token, metadata, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        ON CONFLICT (id) DO NOTHING
+      `, [
+        rec.id, rec.receipt_number, rec.invoice_id || null, rec.order_id || null, rec.merchant_id,
+        rec.client_id || null, rec.client_name, rec.client_phone || '', rec.amount, rec.currency || 'XOF',
+        rec.payment_method || 'WAVE', rec.transaction_reference || '', rec.status || 'COMPLETED',
+        rec.paid_at || new Date().toISOString(), rec.share_token, JSON.stringify(rec.metadata || {}),
+        rec.created_at || new Date().toISOString()
+      ]);
+    }
+
+    // Seeds V2 : Security Events & Alerts
+    for (const sev of (initialSeedData.security_events || [])) {
+      await client.query(`
+        INSERT INTO security_events (id, user_id, event_type, severity, risk_score, details, ip_address, status, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ON CONFLICT (id) DO NOTHING
+      `, [
+        sev.id, sev.user_id, sev.event_type, sev.severity || 'LOW', sev.risk_score || 0,
+        JSON.stringify(sev.details || {}), sev.ip_address || null, sev.status || 'LOGGED',
+        sev.created_at || new Date().toISOString()
+      ]);
+    }
+
+    for (const sal of (initialSeedData.security_alerts || [])) {
+      await client.query(`
+        INSERT INTO security_alerts (id, user_id, transaction_id, title, message, risk_score, risk_level, is_acknowledged, action_taken, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ON CONFLICT (id) DO NOTHING
+      `, [
+        sal.id, sal.user_id, sal.transaction_id || null, sal.title, sal.message, sal.risk_score || 0,
+        sal.risk_level || 'LOW', sal.is_acknowledged || false, sal.action_taken || 'PENDING',
+        sal.created_at || new Date().toISOString(), sal.updated_at || new Date().toISOString()
+      ]);
+    }
+
+    // Seeds V2 : AI Conversations
+    for (const aic of (initialSeedData.ai_conversations || [])) {
+      await client.query(`
+        INSERT INTO ai_conversations (id, user_id, role, message, intent, context_data, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (id) DO NOTHING
+      `, [
+        aic.id, aic.user_id, aic.role, aic.message, aic.intent || 'GENERAL',
+        JSON.stringify(aic.context_data || {}), aic.created_at || new Date().toISOString()
       ]);
     }
   } catch (err) {
@@ -1088,6 +1398,7 @@ export async function checkDbHealth() {
         await ensureCoreTables(client);
         await ensureDeliveryPersonsTable(client);
         await ensureAnalyticsEventsTable(client);
+        await ensureV2Tables(client);
         await ensureAdminAccount(client);
         await seedTablesIfEmpty(client);
         await ensureProductImagesConsistency(client);
@@ -1227,6 +1538,7 @@ export default {
   ensureCoreTables,
   ensureDeliveryPersonsTable,
   ensureAnalyticsEventsTable,
+  ensureV2Tables,
   ensureAdminAccount,
   seedTablesIfEmpty,
   ensureProductImagesConsistency,
