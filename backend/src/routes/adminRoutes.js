@@ -33,9 +33,10 @@ router.get('/analytics/realtime', AnalyticsController.getRealtime);
 router.get('/analytics/pages', AnalyticsController.getPages);
 router.get('/analytics/geography', AnalyticsController.getGeography);
 
-// Utilisateurs, Litiges, Abonnements & Catalogue
+// Utilisateurs, Commerçants, Litiges, Abonnements & Catalogue
 router.get('/users', AdminController.listUsers);
 router.put('/users/:id/status', validate(updateUserStatusSchema), AdminController.updateUserStatus);
+router.get('/merchants', AdminController.listMerchantsDetailed);
 router.get('/disputes', AdminController.listDisputes);
 router.post('/disputes/:id/resolve', validate(resolveDisputeSchema), AdminController.resolveDispute);
 router.get('/subscriptions', SubscriptionController.listAdminSubscriptions);

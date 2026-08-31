@@ -345,6 +345,115 @@ export class AdminController {
   }
 
   /**
+   * Super Admin : Liste détaillée de tous les commerçants avec décompte BDD et diagnostic de visibilité catalogue
+   */
+  static async listMerchantsDetailed(req, res, next) {
+    try {
+      if (pool) {
+        try {
+          const sql = `
+            SELECT 
+              m.*,
+              u.first_name,
+              u.last_name,
+              u.phone AS user_phone,
+              u.email AS user_email,
+              u.status AS user_status,
+              COUNT(p.id)::int AS total_products_count,
+              COUNT(CASE WHEN p.is_active = true AND (p.status = 'APPROVED' OR p.status IS NULL OR p.status = '') AND p.stock > 0 THEN 1 END)::int AS visible_products_count,
+              COUNT(CASE WHEN NOT (p.is_active = true AND (p.status = 'APPROVED' OR p.status IS NULL OR p.status = '') AND p.stock > 0) THEN 1 END)::int AS invisible_products_count
+            FROM merchants m
+            LEFT JOIN users u ON m.user_id = u.id
+            LEFT JOIN products p ON (p.merchant_id = m.id OR p.merchant_id = m.user_id)
+            GROUP BY m.id, u.first_name, u.last_name, u.phone, u.email, u.status
+            ORDER BY m.created_at DESC;
+          `;
+          const mRes = await query(sql);
+          if (mRes?.rows) {
+            const merchants = mRes.rows.map(m => {
+              const total = parseInt(m.total_products_count || 0, 10);
+              const visible = parseInt(m.visible_products_count || 0, 10);
+              const invisible = parseInt(m.invisible_products_count || 0, 10);
+              const isMerchantActive = m.status === 'ACTIVE';
+
+              let visibility_summary = '';
+              if (!isMerchantActive) {
+                visibility_summary = 'Boutique INACTIVE (produits masqués)';
+              } else if (total === 0) {
+                visibility_summary = '0 produit publié (aucun article en BDD)';
+              } else if (invisible === 0) {
+                visibility_summary = `${total} produit(s) → ${visible} visible(s)`;
+              } else {
+                visibility_summary = `${visible} visible(s) • ${invisible} masqué(s)`;
+              }
+
+              return {
+                ...m,
+                total_products_count: total,
+                visible_products_count: isMerchantActive ? visible : 0,
+                invisible_products_count: isMerchantActive ? invisible : total,
+                visibility_summary,
+                user_name: m.first_name ? `${m.first_name} ${m.last_name}` : 'Commerçant'
+              };
+            });
+
+            return res.status(200).json({
+              success: true,
+              count: merchants.length,
+              data: merchants
+            });
+          }
+        } catch (dbErr) {
+          if (process.env.NODE_ENV === 'production') throw dbErr;
+        }
+      }
+
+      // Fallback mémoire
+      const merchants = (memoryStore.merchants || []).map(m => {
+        const user = (memoryStore.users || []).find(u => u.id === m.user_id);
+        const prods = (memoryStore.products || []).filter(p => p.merchant_id === m.id || p.merchant_id === m.user_id);
+        const total = prods.length;
+        const visible = prods.filter(p => p.is_active && (p.status === 'APPROVED' || !p.status) && p.stock > 0).length;
+        const invisible = total - visible;
+        const isMerchantActive = m.status === 'ACTIVE';
+
+        let visibility_summary = '';
+        if (!isMerchantActive) {
+          visibility_summary = 'Boutique INACTIVE (produits masqués)';
+        } else if (total === 0) {
+          visibility_summary = '0 produit publié (aucun article en BDD)';
+        } else if (invisible === 0) {
+          visibility_summary = `${total} produit(s) → ${visible} visible(s)`;
+        } else {
+          visibility_summary = `${visible} visible(s) • ${invisible} masqué(s)`;
+        }
+
+        return {
+          ...m,
+          first_name: user?.first_name || '',
+          last_name: user?.last_name || '',
+          user_name: user ? `${user.first_name} ${user.last_name}` : 'Commerçant',
+          user_phone: user?.phone || m.phone,
+          user_email: user?.email || '',
+          user_status: user?.status || 'ACTIVE',
+          total_products_count: total,
+          visible_products_count: isMerchantActive ? visible : 0,
+          invisible_products_count: isMerchantActive ? invisible : total,
+          visibility_summary
+        };
+      });
+
+      return res.status(200).json({
+        success: true,
+        count: merchants.length,
+        data: merchants
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
    * Liste des livreurs enregistrés
    */
   static async listDeliveryPersons(req, res, next) {
@@ -374,11 +483,11 @@ export class AdminController {
   }
 
   /**
-   * Liste complète de tous les produits (avec filtrage par statut de modération)
+   * Liste complète de tous les produits avec diagnostic de visibilité public
    */
   static async listProducts(req, res, next) {
     try {
-      const { status, search } = req.query;
+      const { status, search, visibility, merchant_id } = req.query;
 
       if (pool) {
         try {
@@ -386,20 +495,26 @@ export class AdminController {
             SELECT p.*,
                    m.business_name AS merchant_name,
                    m.city AS merchant_city,
-                   m.phone AS merchant_phone
+                   m.phone AS merchant_phone,
+                   m.status AS merchant_status
             FROM products p
-            JOIN merchants m ON p.merchant_id = m.id
+            LEFT JOIN merchants m ON (p.merchant_id = m.id OR p.merchant_id = m.user_id)
             WHERE 1=1
           `;
           const params = [];
           let pIdx = 1;
 
+          if (merchant_id) {
+            sql += ` AND (p.merchant_id = $${pIdx} OR m.id = $${pIdx})`;
+            params.push(merchant_id);
+            pIdx++;
+          }
           if (status && status !== 'all') {
             sql += ` AND p.status = $${pIdx++}`;
             params.push(status);
           }
           if (search) {
-            sql += ` AND (LOWER(p.name) LIKE LOWER($${pIdx}) OR LOWER(COALESCE(p.description, '')) LIKE LOWER($${pIdx}) OR LOWER(m.business_name) LIKE LOWER($${pIdx}))`;
+            sql += ` AND (LOWER(p.name) LIKE LOWER($${pIdx}) OR LOWER(COALESCE(p.description, '')) LIKE LOWER($${pIdx}) OR LOWER(COALESCE(m.business_name, '')) LIKE LOWER($${pIdx}))`;
             params.push(`%${search.trim()}%`);
             pIdx++;
           }
@@ -408,10 +523,44 @@ export class AdminController {
 
           const pRes = await query(sql, params);
           if (pRes?.rows) {
+            let enriched = pRes.rows.map(p => {
+              const isMerchantActive = p.merchant_status === 'ACTIVE';
+              const isProductActive = Boolean(p.is_active);
+              const isApproved = p.status === 'APPROVED' || !p.status;
+              const hasStock = parseInt(p.stock, 10) > 0;
+              const isVisible = isMerchantActive && isProductActive && isApproved && hasStock;
+
+              let reason = 'Actif et visible au catalogue public';
+              if (!isMerchantActive) {
+                reason = 'Boutique commerçant inactive';
+              } else if (!isProductActive) {
+                reason = 'Désactivé (is_active = false)';
+              } else if (p.status === 'REJECTED') {
+                reason = 'Rejeté par la modération';
+              } else if (p.status === 'PENDING') {
+                reason = 'En attente de modération';
+              } else if (!hasStock) {
+                reason = 'Stock épuisé (0 article)';
+              }
+
+              return {
+                ...p,
+                is_publicly_visible: isVisible,
+                visibility_status: isVisible ? 'VISIBLE' : 'NON VISIBLE',
+                visibility_reason: reason
+              };
+            });
+
+            if (visibility === 'visible') {
+              enriched = enriched.filter(p => p.is_publicly_visible);
+            } else if (visibility === 'invisible') {
+              enriched = enriched.filter(p => !p.is_publicly_visible);
+            }
+
             return res.status(200).json({
               success: true,
-              count: pRes.rows.length,
-              data: pRes.rows
+              count: enriched.length,
+              data: enriched
             });
           }
         } catch (dbErr) {
@@ -420,21 +569,52 @@ export class AdminController {
       }
 
       let products = (memoryStore.products || []).map(p => {
-        const m = (memoryStore.merchants || []).find(merchant => merchant.id === p.merchant_id);
+        const m = (memoryStore.merchants || []).find(merchant => merchant.id === p.merchant_id || merchant.user_id === p.merchant_id);
+        const isMerchantActive = m?.status === 'ACTIVE';
+        const isProductActive = Boolean(p.is_active);
+        const isApproved = p.status === 'APPROVED' || !p.status;
+        const hasStock = parseInt(p.stock, 10) > 0;
+        const isVisible = isMerchantActive && isProductActive && isApproved && hasStock;
+
+        let reason = 'Actif et visible au catalogue public';
+        if (!isMerchantActive) {
+          reason = 'Boutique commerçant inactive';
+        } else if (!isProductActive) {
+          reason = 'Désactivé (is_active = false)';
+        } else if (p.status === 'REJECTED') {
+          reason = 'Rejeté par la modération';
+        } else if (p.status === 'PENDING') {
+          reason = 'En attente de modération';
+        } else if (!hasStock) {
+          reason = 'Stock épuisé (0 article)';
+        }
+
         return {
           ...p,
           merchant_name: m?.business_name || 'Commerçant',
           merchant_city: m?.city || 'Dakar',
-          merchant_phone: m?.phone || ''
+          merchant_phone: m?.phone || '',
+          merchant_status: m?.status || 'ACTIVE',
+          is_publicly_visible: isVisible,
+          visibility_status: isVisible ? 'VISIBLE' : 'NON VISIBLE',
+          visibility_reason: reason
         };
       });
 
+      if (merchant_id) {
+        products = products.filter(p => p.merchant_id === merchant_id);
+      }
       if (status && status !== 'all') {
         products = products.filter(p => p.status === status);
       }
       if (search) {
         const q = search.toLowerCase();
         products = products.filter(p => p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q)) || p.merchant_name.toLowerCase().includes(q));
+      }
+      if (visibility === 'visible') {
+        products = products.filter(p => p.is_publicly_visible);
+      } else if (visibility === 'invisible') {
+        products = products.filter(p => !p.is_publicly_visible);
       }
 
       return res.status(200).json({

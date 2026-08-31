@@ -224,8 +224,26 @@ async function runInstantProductPublishTests() {
     });
     assert(unauthCreate.status === 401, 'Non authentifié Bloqué (401 Unauthorized)');
 
+    // TEST 8 : Diagnostic Admin Marchands & Produits (/api/admin/merchants & /api/admin/products)
+    console.log('\n8️⃣ Test 8 : Diagnostics Admin de Synchronisation Catalogue...');
+    const adminMerchantsRes = await apiRequest('/admin/merchants', {
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    assert(adminMerchantsRes.status === 200, 'GET /api/admin/merchants retourne 200 OK');
+    assert(Array.isArray(adminMerchantsRes.data.data), 'Liste des marchands admin valide');
+    const marchA = adminMerchantsRes.data.data.find(m => m.business_name === 'Diop Sports & Sneakers' || m.id === 'm0000000-0000-0000-0000-000000000001');
+    assert(marchA && typeof marchA.total_products_count === 'number', 'Marchand Diop Sports a un décompte produit');
+    assert(marchA && typeof marchA.visibility_summary === 'string', 'Marchand Diop Sports a un diagnostic de visibilité');
+
+    const adminProdsRes = await apiRequest('/admin/products', {
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    assert(adminProdsRes.status === 200, 'GET /api/admin/products retourne 200 OK');
+    assert(adminProdsRes.data.data.every(p => typeof p.is_publicly_visible === 'boolean'), 'Chaque produit a is_publicly_visible booléen');
+    assert(adminProdsRes.data.data.every(p => typeof p.visibility_reason === 'string'), 'Chaque produit a une raison explicite de visibilité');
+
     console.log('\n================================================================');
-    console.log('  🎉 TOUS LES 7 TESTS D\'AFFICHAGE IMMÉDIAT ET DE SÉCURITÉ SONT VALIDÉS !');
+    console.log('  🎉 TOUS LES 8 TESTS D\'AFFICHAGE IMMÉDIAT ET DE SÉCURITÉ SONT VALIDÉS !');
     console.log('================================================================\n');
 
   } catch (err) {

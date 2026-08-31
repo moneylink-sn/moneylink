@@ -91,7 +91,7 @@ export class MerchantController {
   }
 
   /**
-   * Catalogue public : Liste tous les produits actifs et approuvés de tous les commerçants
+   * Catalogue public : Liste tous les produits actifs et approuvés de tous les commerçants actifs
    * Supporte filtres : ?search=..., ?category=..., ?merchant_id=..., ?city=...
    */
   static async listAllProducts(req, res, next) {
@@ -109,23 +109,27 @@ export class MerchantController {
                    m.logo_url AS merchant_logo,
                    m.is_verified AS merchant_is_verified
             FROM products p
-            JOIN merchants m ON p.merchant_id = m.id
-            WHERE p.is_active = true AND (p.status = 'APPROVED' OR p.status IS NULL) AND m.status = 'ACTIVE'
+            JOIN merchants m ON (p.merchant_id = m.id OR p.merchant_id = m.user_id)
+            WHERE p.is_active = true 
+              AND (p.status = 'APPROVED' OR p.status IS NULL OR p.status = '') 
+              AND UPPER(m.status) = 'ACTIVE'
+              AND (p.stock > 0 OR p.stock IS NULL)
           `;
           const params = [];
           let paramIdx = 1;
 
           if (merchant_id) {
-            sql += ` AND p.merchant_id = $${paramIdx++}`;
+            sql += ` AND (p.merchant_id = $${paramIdx} OR m.id = $${paramIdx} OR m.user_id = $${paramIdx})`;
             params.push(merchant_id);
+            paramIdx++;
           }
           if (category && category !== 'all' && category !== 'Tous') {
             sql += ` AND LOWER(p.category) = LOWER($${paramIdx++})`;
-            params.push(category);
+            params.push(category.trim());
           }
           if (city && city !== 'all' && city !== 'Toutes') {
             sql += ` AND (LOWER(p.city) = LOWER($${paramIdx}) OR LOWER(m.city) = LOWER($${paramIdx}))`;
-            params.push(city);
+            params.push(city.trim());
             paramIdx++;
           }
           if (search) {
@@ -149,27 +153,33 @@ export class MerchantController {
         }
       }
 
-      const activeMerchants = memoryStore.merchants.filter(m => m.status === 'ACTIVE');
+      const activeMerchants = (memoryStore.merchants || []).filter(m => m.status === 'ACTIVE');
       const activeMerchantIds = new Set(activeMerchants.map(m => m.id));
+      const activeMerchantUserIds = new Set(activeMerchants.map(m => m.user_id));
 
-      let memProds = memoryStore.products.filter(p => p.is_active && (p.status === 'APPROVED' || !p.status) && activeMerchantIds.has(p.merchant_id));
+      let memProds = (memoryStore.products || []).filter(p => 
+        p.is_active && 
+        (p.status === 'APPROVED' || !p.status || p.status === '') && 
+        (activeMerchantIds.has(p.merchant_id) || activeMerchantUserIds.has(p.merchant_id)) &&
+        (p.stock === undefined || p.stock === null || p.stock > 0)
+      );
 
       if (merchant_id) {
         memProds = memProds.filter(p => p.merchant_id === merchant_id);
       }
       if (category && category !== 'all' && category !== 'Tous') {
-        memProds = memProds.filter(p => p.category && p.category.toLowerCase() === category.toLowerCase());
+        memProds = memProds.filter(p => p.category && p.category.toLowerCase() === category.toLowerCase().trim());
       }
       if (city && city !== 'all' && city !== 'Toutes') {
-        memProds = memProds.filter(p => (p.city && p.city.toLowerCase() === city.toLowerCase()));
+        memProds = memProds.filter(p => (p.city && p.city.toLowerCase() === city.toLowerCase().trim()));
       }
       if (search) {
-        const q = search.toLowerCase();
+        const q = search.toLowerCase().trim();
         memProds = memProds.filter(p => p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q)));
       }
 
       const products = memProds.map(p => {
-        const m = activeMerchants.find(merchant => merchant.id === p.merchant_id);
+        const m = activeMerchants.find(merchant => merchant.id === p.merchant_id || merchant.user_id === p.merchant_id);
         return {
           ...p,
           merchant_name: m?.business_name || 'Commerçant MoneyLink',
@@ -208,8 +218,11 @@ export class MerchantController {
                    m.logo_url AS merchant_logo,
                    m.is_verified AS merchant_is_verified
             FROM products p
-            JOIN merchants m ON p.merchant_id = m.id
-            WHERE p.id = $1 AND p.is_active = true AND (p.status = 'APPROVED' OR p.status IS NULL) AND m.status = 'ACTIVE'
+            JOIN merchants m ON (p.merchant_id = m.id OR p.merchant_id = m.user_id)
+            WHERE p.id = $1 
+              AND p.is_active = true 
+              AND (p.status = 'APPROVED' OR p.status IS NULL OR p.status = '') 
+              AND UPPER(m.status) = 'ACTIVE'
             LIMIT 1;
           `;
           const resDb = await query(sql, [id]);
@@ -224,12 +237,12 @@ export class MerchantController {
         }
       }
 
-      const p = memoryStore.products.find(item => item.id === id && item.is_active && (item.status === 'APPROVED' || !item.status));
+      const p = (memoryStore.products || []).find(item => item.id === id && item.is_active && (item.status === 'APPROVED' || !item.status || item.status === ''));
       if (!p) {
         return res.status(404).json({ success: false, error: 'Produit introuvable ou indisponible.' });
       }
 
-      const m = memoryStore.merchants.find(merchant => merchant.id === p.merchant_id && merchant.status === 'ACTIVE');
+      const m = (memoryStore.merchants || []).find(merchant => (merchant.id === p.merchant_id || merchant.user_id === p.merchant_id) && merchant.status === 'ACTIVE');
       if (!m) {
         return res.status(404).json({ success: false, error: 'Boutique introuvable ou indisponible.' });
       }
