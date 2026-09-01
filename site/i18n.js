@@ -234,6 +234,31 @@ export const translations = {
     // Section 14: FAQ
     faq_title: "❓ Foire Aux Questions (FAQ)",
     faq_subtitle: "Tout ce que vous devez savoir pour démarrer avec MoneyLink.",
+    faq_q1: "1. Qu'est-ce que MoneyLink ?",
+    faq_a1: "MoneyLink est une plateforme FinTech et e-commerce sénégalaise réunissant marketplace, paiement sécurisé, séquestre transactionnel, facturation professionnelle, gestion d'épargne et outils business pour particuliers et commerçants.",
+    faq_q2: "2. Comment fonctionne le séquestre ?",
+    faq_a2: "Lors d'une commande, l'argent de l'acheteur est consigné en toute sécurité par MoneyLink. Le commerçant prépare et livre le colis. Après validation de la livraison et conformément au processus MoneyLink et aux conditions du moyen de paiement utilisé, les fonds peuvent être libérés vers le vendeur.",
+    faq_q3: "3. Comment fonctionne le code secret OTP ?",
+    faq_a3: "C'est un code confidentiel à 6 chiffres généré pour chaque commande et accessible uniquement sur le compte de l'acheteur. Il ne doit être communiqué au livreur ou commerçant qu'au moment précis de la réception conforme.",
+    faq_q4: "4. Qui peut utiliser MoneyLink ?",
+    faq_a4: "Toute personne résidant au Sénégal ou dans l'espace UEMOA disposant d'un téléphone et d'un compte Mobile Money (Wave, Orange Money, Free Money) : particuliers, commerçants, boutiques physiques, vendeurs en ligne et prestataires de services.",
+    faq_q5: "5. Comment devenir commerçant sur MoneyLink ?",
+    faq_a5: "Cliquez sur \"Devenir commerçant\", renseignez les informations de votre boutique (nom commercial, catégorie, téléphone WhatsApp, ville) et commencez immédiatement à publier vos produits et générer des factures.",
+    faq_q6: "6. MoneyLink IA peut-il effectuer des mouvements de fonds ?",
+    faq_a6: "Non, absolument pas. MoneyLink IA est un assistant 100% consultatif. Il analyse vos statistiques et vous prodigue des conseils de gestion, mais il n'a aucun pouvoir d'initier un virement ou de débiter votre compte.",
+    faq_q7: "7. Comment créer et envoyer une facture ?",
+    faq_a7: "Depuis votre Espace Marchand, rendez-vous dans l'onglet \"Factures & Reçus\", cliquez sur \"Créer une Facture\", ajoutez vos articles et partagez directement le lien officiel ou le PDF avec votre client via WhatsApp.",
+    faq_q8: "8. Comment fonctionne MoneyLink Shield ?",
+    faq_a8: "MoneyLink Shield surveille en temps réel les opérations inhabituelles (montant anormalement élevé, nouveau bénéficiaire) et déclenche une demande de confirmation explicite avec indice de risque afin de prévenir les fraudes.",
+    faq_q9: "9. MoneyLink fonctionne-t-il en Wolof ?",
+    faq_a9: "Oui ! La plateforme est 100% bilingue Français 🇫🇷 et Wolof 🇸🇳. Vous pouvez changer de langue à tout moment directement depuis le sélecteur situé dans l'en-tête du site.",
+    faq_q10: "10. Quels moyens de paiement sont disponibles ?",
+    faq_a10: "Wave Sénégal et Orange Money Sénégal sont actuellement intégrés en environnement de test/sandbox et déployés progressivement en accès contrôlé avec les partenaires de paiement.",
+    faq_q11: "11. Comment contacter l'équipe d'assistance ?",
+    faq_a11: "Vous pouvez nous contacter via le formulaire de contact ci-dessous, par email à contact@moneylink.sn ou par téléphone et WhatsApp au +221 70 608 21 20 du lundi au samedi.",
+    faq_q12: "12. Comment se déroule la résolution des litiges et remboursements ?",
+    faq_a12: "En cas de litige, les fonds peuvent rester bloqués conformément au processus MoneyLink jusqu'à résolution du litige. Les modalités de remboursement dépendent du statut de la transaction et des conditions applicables.",
+    back_to_top: "Retour en haut",
 
     // Section 15: Tarification
     pricing_title: "💰 Tarification Simple & Transparente",
@@ -496,6 +521,31 @@ export const translations = {
     // Section 14: FAQ
     faq_title: "❓ Laaj yi gën a Fes (FAQ)",
     faq_subtitle: "Lépp li nga wara xam balaa ngay tàmbali ci MoneyLink.",
+    faq_q1: "1. Lu di MoneyLink ?",
+    faq_a1: "MoneyLink mooy platform FinTech ak e-commerce ci Senegaal bu boole marketplace, fey gu wóor, dencum xaliss bu wóor, defar facture professionel, dencum xaliss ak outils business ngir nit ñi ak jaaykat ñi.",
+    faq_q2: "2. Naka la dencum xaliss (séquestre) bi di doxe ?",
+    faq_a2: "Boo komànde, xaliss u jëndkat bi dafay nekk ci MoneyLink mu denc ko ci kaarange. Jaaykat bi pareel bagaas bi te yónnee ko. Boo nangee ne jot nga bagaas bi amul benn àtte, MoneyLink fay jaaykat bi xalissam.",
+    faq_q3: "3. Naka la kéek u kaarange OTP bi di doxe ?",
+    faq_a3: "Code secret bu 6 chiffre la bu ñu génneel komànd bu nekk, te jëndkat bi rekk moo ko mën a gis ci kontam. Waruloo ko jox livreur bi walla jaaykat bi ludul bés ba nga jotee sa bagaas te wóor la.",
+    faq_q4: "4. Ñan ñoo mën a jëfandikoo MoneyLink ?",
+    faq_a4: "Képp ku dëkk Senegaal walla ci espace UEMOA bu am telefon ak kont Mobile Money (Wave, Orange Money, Free Money) : jëndkat, jaaykat, boutik, jaaykat internet ak liggéeykat ñi.",
+    faq_q5: "5. Naka lañuy nekke jaaykat ci MoneyLink ?",
+    faq_a5: "Besal ci \"Bëgg naama nekk jaaykat\", bindal tur u sa boutik, wàll bi (catégorie), telefon WhatsApp ak dëkk bi, te tàmbali léegi di jaay sa bagaas ak di génne ay facture.",
+    faq_q6: "6. Ndax MoneyLink IA mën na yëngal walla yóbb sa xaliss ?",
+    faq_a6: "Déedéet, mënul loolu mukk. MoneyLink IA dimbalikat la bu lay jox xalaat ak digle rekk. Dafay saytu sa lim te di la jox digle, waaye mënul mukk yónnee xaliss walla dindi xaliss ci sa kont.",
+    faq_q7: "7. Naka lañuy defare te yónnee facture ?",
+    faq_a7: "Ci sa Espace Marchand, demal ci \"Factures & Reçus\", besal \"Créer une Facture\", yokkal sa bagaas yi te yónneel sa client bi lien bi walla PDF bi ci WhatsApp.",
+    faq_q8: "8. Naka la MoneyLink Shield di doxe ?",
+    faq_a8: "MoneyLink Shield dafay saytu mu mel ni loxoy sañ-sañ u njuumte walla sacc (somme bu réy, ki nga koy yónnee bu yees) te da lay laaj nga dëggal ko balaa mu di dox ngir ar la ci njuumte ak nàtt.",
+    faq_q9: "9. Ndax MoneyLink di na dox ci Wolof ?",
+    faq_a9: "Waaw ! Platform bi 100% bilingue la, dafay dox ci Français 🇫🇷 ak Wolof 🇸🇳. Mën nga soppi làkk bi waxtu bu nekk ci sélecteur bi nekk ci kaw sa site.",
+    faq_q10: "10. Ban pexey fey moo am ci MoneyLink ?",
+    faq_a10: "Wave Sénégal ak Orange Money Sénégal ñoo am léegi ci test/sandbox te ñungi koy tàmbali di ko yelwaan ak partenaire u fey yi.",
+    faq_q11: "11. Naka lañuy jokkoo ak équipu dimbal bi ?",
+    faq_a11: "Mën nga nuy jokkoo ci formulaire u contact bi ci suuf, ci email contact@moneylink.sn walla ci telefon ak WhatsApp ci +221 70 608 21 20 altine ba gaawu.",
+    faq_q12: "12. Naka lañuy regleer wente ak delloosi xaliss ?",
+    faq_a12: "Suma amee xuloo walla wente, xaliss bi dafay des bu tëju ba kéroog ñuy saafara wente bi. Ni ñuy delloosee xaliss bi dafay aju ci statut u transaction bi ak condition yi aju ci loolu.",
+    back_to_top: "Delsoosi ci kaw",
 
     // Section 15: Tarification
     pricing_title: "💰 Njëg bu Leer te Yomb",
@@ -573,6 +623,15 @@ export const I18n = {
         } else {
           el.textContent = text;
         }
+      }
+    });
+
+    const ariaElements = document.querySelectorAll('[data-i18n-aria]');
+    ariaElements.forEach(el => {
+      const key = el.getAttribute('data-i18n-aria');
+      const text = this.t(key);
+      if (text) {
+        el.setAttribute('aria-label', text);
       }
     });
 

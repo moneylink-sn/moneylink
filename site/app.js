@@ -2756,6 +2756,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initEcosystemStats();
   initEscrowCalculator();
   initFaqAccordion();
+  initBackToTop();
   initHashRouter();
   setupFormHandlers();
 });
@@ -3208,13 +3209,58 @@ function initEscrowCalculator() {
 function initFaqAccordion() {
   const faqItems = document.querySelectorAll('.faq-item');
   faqItems.forEach(item => {
-    const question = item.querySelector('h3');
-    if (question) {
-      question.style.cursor = 'pointer';
-      question.addEventListener('click', () => {
-        item.classList.toggle('active');
+    const btn = item.querySelector('.faq-question');
+    const answer = item.querySelector('.faq-answer');
+    if (!btn || !answer) return;
+
+    btn.addEventListener('click', () => {
+      const isAlreadyActive = item.classList.contains('active');
+
+      // Accordéon intelligent : referme les autres réponses ouvertes pour garder la page propre
+      faqItems.forEach(otherItem => {
+        if (otherItem !== item && otherItem.classList.contains('active')) {
+          otherItem.classList.remove('active');
+          const otherBtn = otherItem.querySelector('.faq-question');
+          const otherAnswer = otherItem.querySelector('.faq-answer');
+          if (otherBtn) otherBtn.setAttribute('aria-expanded', 'false');
+          if (otherAnswer) otherAnswer.hidden = true;
+        }
       });
+
+      // Bascule de l'élément cliqué
+      if (isAlreadyActive) {
+        item.classList.remove('active');
+        btn.setAttribute('aria-expanded', 'false');
+        answer.hidden = true;
+      } else {
+        item.classList.add('active');
+        btn.setAttribute('aria-expanded', 'true');
+        answer.hidden = false;
+      }
+    });
+  });
+}
+
+function initBackToTop() {
+  const backToTopBtn = document.getElementById('backToTop');
+  if (!backToTopBtn) return;
+
+  const toggleVisibility = () => {
+    if (window.scrollY > 300) {
+      backToTopBtn.classList.add('visible');
+    } else {
+      backToTopBtn.classList.remove('visible');
     }
+  };
+
+  window.addEventListener('scroll', toggleVisibility, { passive: true });
+  toggleVisibility();
+
+  backToTopBtn.addEventListener('click', () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
   });
 }
 
