@@ -10,19 +10,19 @@ export const translations = {
     brand_tagline: "Plateforme FinTech & Commerce Sécurisé au Sénégal",
     nav_catalog: "🛍️ Catalogue",
     nav_escrow: "🔐 Séquestre",
-    nav_innovations: "⭐ 5 Innovations",
+    nav_innovations: "⭐ Innovations",
     nav_savings: "💰 Épargne & Coffres",
-    nav_merchants: "🏪 Commerçants",
-    nav_individuals: "👤 Particuliers",
+    nav_merchants: "🏪 Commerçant",
+    nav_individuals: "👤 Particulier",
     nav_senegal: "🇸🇳 Pensé pour le Sénégal",
     nav_pricing: "Tarifs (500 F)",
     nav_security: "Sécurité",
-    nav_payments: "Paiements",
+    nav_payments: "💳 Paiement",
     nav_early_access: "🚀 Early Access",
     nav_faq: "FAQ",
     nav_contact: "Contact",
     nav_cart: "Panier",
-    nav_login: "Connexion / Compte",
+    nav_login: "Connexion",
     logout: "Déconnexion",
     my_space: "Mon Espace",
     
@@ -270,21 +270,21 @@ export const translations = {
   wo: {
     // Navigation & Global
     brand_tagline: "Béréb bu Xereñ ngir Denc Xaliss ak Jaay ci Wóor ci Senegaal",
-    nav_catalog: "🛍️ Jaay yi",
+    nav_catalog: "🛍️ Katalóg",
     nav_escrow: "🔐 Denc Xaliss (Séquestre)",
-    nav_innovations: "⭐ 5 Jumtukaay yi",
+    nav_innovations: "⭐ Xalaat yu Yees",
     nav_savings: "💰 Denc ngir Ëllëg",
-    nav_merchants: "🏪 Jaaykat yi",
-    nav_individuals: "👤 Jëndkat yi",
+    nav_merchants: "🏪 Jaaykat",
+    nav_individuals: "👤 Jëfandikookat",
     nav_senegal: "🇸🇳 Defar ko ngir Senegaal",
     nav_pricing: "Njëg (500 F)",
     nav_security: "Kaarange",
-    nav_payments: "Paiement yi",
+    nav_payments: "💳 Feyin",
     nav_early_access: "🚀 Duggu ci Njëlbéen",
     nav_faq: "Laaj yi",
     nav_contact: "Jokkoo",
     nav_cart: "Panié",
-    nav_login: "Duggu / Sa Kont",
+    nav_login: "Dugg ci Sa Kont",
     logout: "Génn",
     my_space: "Sama Béréb",
 
@@ -559,6 +559,8 @@ export const I18n = {
   },
 
   applyToDOM() {
+    document.documentElement.lang = this.currentLang;
+
     const elements = document.querySelectorAll('[data-i18n]');
     elements.forEach(el => {
       const key = el.getAttribute('data-i18n');
@@ -566,17 +568,35 @@ export const I18n = {
       if (text) {
         if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
           if (el.placeholder !== undefined) el.placeholder = text;
+        } else if (el.classList.contains('nav-login-btn') || el.id === 'nav-login-btn' || el.id === 'mobile-nav-login-btn') {
+          el.innerHTML = `🔐 ${text}`;
         } else {
           el.textContent = text;
         }
       }
     });
 
-    // Mise à jour de l'indicateur de langue dans le sélecteur
-    const langDisplay = document.getElementById('current-lang-text');
-    if (langDisplay) {
-      langDisplay.textContent = this.currentLang === 'wo' ? '🇸🇳 Wolof' : '🇫🇷 Français';
+    // Mise à jour du texte indicateur dans tous les sélecteurs de langue
+    document.querySelectorAll('#current-lang-text, .current-lang-display').forEach(el => {
+      el.textContent = this.currentLang === 'wo' ? '🇸🇳 Wolof' : '🇫🇷 Français';
+    });
+
+    const langBtn = document.getElementById('lang-menu-btn');
+    if (langBtn) {
+      langBtn.setAttribute('aria-label', this.currentLang === 'wo' ? 'Soppi làkk (Léegi: Wolof)' : 'Changer de langue (Actuel: Français)');
     }
+
+    // Synchronisation des classes actives des options de langue
+    document.querySelectorAll('.lang-option-btn, .mobile-lang-option-btn').forEach(btn => {
+      const isCurrent = btn.getAttribute('data-lang') === this.currentLang;
+      if (isCurrent) {
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
+      } else {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-selected', 'false');
+      }
+    });
   }
 };
 

@@ -65,53 +65,114 @@
 <body>
 
   <!-- ========================================================================
-       BARRE DE NAVIGATION PRINCIPALE
+       BARRE DE NAVIGATION OFFICIELLE MONEYLINK V2.5
        ======================================================================== -->
-  <nav class="navbar">
+  <nav class="navbar" id="main-navbar">
     <div class="container nav-container">
-      <a href="#" class="nav-logo">
+      <!-- 1. Logo MoneyLink -->
+      <a href="#" class="nav-logo" id="nav-logo-link" title="MoneyLink Accueil">
         <img src="assets/moneylink_logo.svg" alt="MoneyLink Logo" />
       </a>
       
-      <ul class="nav-links">
-        <li><a href="#catalogue" data-i18n="nav_catalog">🛍️ Catalogue</a></li>
-        <li><a href="#sequestre" data-i18n="nav_escrow">🔐 Séquestre</a></li>
-        <li><a href="#innovations" data-i18n="nav_innovations">⭐ 5 Innovations</a></li>
-        <li><a href="#epargne" data-i18n="nav_savings">💰 Épargne</a></li>
-        <li><a href="#commercants" data-i18n="nav_merchants">🏪 Commerçants</a></li>
-        <li><a href="#particuliers" data-i18n="nav_individuals">👤 Particuliers</a></li>
-        <li><a href="#tarifs" data-i18n="nav_pricing">Tarifs (500 F)</a></li>
-        <li><a href="#securite" data-i18n="nav_security">Sécurité</a></li>
-        <li><a href="#paiements" data-i18n="nav_payments">Paiements</a></li>
-        <li><a href="#early-access" data-i18n="nav_early_access">🚀 Early Access</a></li>
-        <li><a href="#faq" data-i18n="nav_faq">FAQ</a></li>
-      </ul>
+      <!-- 2. Liens Essentiels Desktop : Catalogue & Innovations + Accès Dédiés -->
+      <div class="nav-desktop-main">
+        <ul class="nav-links" id="desktop-nav-links">
+          <li><a href="#catalogue" class="nav-main-link" data-i18n="nav_catalog">🛍️ Catalogue</a></li>
+          <li><a href="#innovations" class="nav-main-link" data-i18n="nav_innovations">⭐ Innovations</a></li>
+        </ul>
 
-      <div class="nav-actions">
-        <!-- Sélecteur de Langue (Français / Wolof) -->
-        <div class="lang-selector-dropdown">
-          <button id="lang-menu-btn" class="lang-btn" title="Changer de langue">
-            <span id="current-lang-text">🇫🇷 Français</span>
-            <span style="font-size: 10px;">▼</span>
-          </button>
-          <div id="lang-menu-popover" class="lang-menu-popover">
-            <button class="lang-option-btn" data-lang="fr">🇫🇷 Français</button>
-            <button class="lang-option-btn" data-lang="wo">🇸🇳 Wolof</button>
-          </div>
+        <!-- Accès Dédiés présentés proprement sans saturer la barre : 💳 Paiement | 👤 Particulier | 🏪 Commerçant -->
+        <div class="nav-quick-access" id="desktop-quick-access">
+          <a href="#paiements" class="quick-access-item" data-i18n="nav_payments">💳 Paiement</a>
+          <span class="quick-access-divider">|</span>
+          <a href="#particuliers" class="quick-access-item" data-i18n="nav_individuals">👤 Particulier</a>
+          <span class="quick-access-divider">|</span>
+          <a href="#commercants" class="quick-access-item" data-i18n="nav_merchants">🏪 Commerçant</a>
         </div>
+      </div>
 
-        <!-- Bouton Panier -->
-        <button id="open-cart-btn" class="cart-nav-btn" title="Voir mon panier">
-          <span>🛒</span>
-          <span data-i18n="nav_cart">Panier</span>
+      <!-- 3. Actions Navbar (Desktop & Mobile) -->
+      <div class="nav-actions">
+        <!-- 🛒 Panier avec compteur dynamique -->
+        <button id="open-cart-btn" class="cart-nav-btn" title="Voir mon panier" aria-label="Voir le panier">
+          <span class="cart-btn-icon">🛒</span>
+          <span class="cart-btn-label" data-i18n="nav_cart">Panier</span>
           <span id="cart-badge-count" class="cart-badge-count">0</span>
         </button>
 
-        <!-- Espace Auth / Profil Dynamique -->
-        <div id="nav-auth-container">
-          <button id="nav-login-btn" class="btn btn-primary btn-sm" data-i18n="nav_login">
-            Connexion / Compte
+        <!-- 🔐 Connexion -->
+        <div id="nav-auth-container" class="nav-auth-container">
+          <button id="nav-login-btn" class="btn btn-primary btn-sm nav-login-btn" data-i18n="nav_login">
+            🔐 Connexion
           </button>
+        </div>
+
+        <!-- 🇫🇷 Français ▾ Sélecteur de Langue (Présent sur Desktop & Mobile) -->
+        <div class="lang-selector-dropdown" id="nav-lang-dropdown">
+          <button id="lang-menu-btn" class="lang-btn" title="Changer de langue / Soppi làkk" aria-label="Changer de langue" aria-haspopup="true" aria-expanded="false">
+            <span id="current-lang-text">🇫🇷 Français</span>
+            <span class="lang-arrow">▾</span>
+          </button>
+          <div id="lang-menu-popover" class="lang-menu-popover" role="menu">
+            <button class="lang-option-btn active" data-lang="fr" role="menuitem">
+              <span class="lang-option-text">🇫🇷 Français</span>
+              <span class="lang-check">✓</span>
+            </button>
+            <button class="lang-option-btn" data-lang="wo" role="menuitem">
+              <span class="lang-option-text">🇸🇳 Wolof</span>
+              <span class="lang-check">✓</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ☰ Bouton Menu Hamburger Mobile (Visible UNIQUEMENT sur mobile) -->
+        <button id="mobile-menu-toggle-btn" class="mobile-menu-toggle-btn" title="Ouvrir le menu" aria-label="Ouvrir le menu de navigation">
+          <span class="hamburger-bar"></span>
+          <span class="hamburger-bar"></span>
+          <span class="hamburger-bar"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Tiroir de Navigation Mobile Responsive (☰) -->
+    <div id="mobile-nav-drawer" class="mobile-nav-drawer" aria-hidden="true">
+      <div class="mobile-nav-backdrop" id="mobile-nav-backdrop"></div>
+      <div class="mobile-nav-content">
+        <div class="mobile-nav-header">
+          <a href="#" class="nav-logo mobile-logo" id="mobile-nav-logo">
+            <img src="assets/moneylink_logo.svg" alt="MoneyLink Logo" style="height: 38px; width: auto;" />
+          </a>
+          <button id="close-mobile-menu-btn" class="mobile-nav-close-btn" aria-label="Fermer le menu">&times;</button>
+        </div>
+
+        <div class="mobile-nav-body">
+          <ul class="mobile-nav-links-list">
+            <li><a href="#catalogue" class="mobile-nav-item" data-i18n="nav_catalog">🛍️ Catalogue</a></li>
+            <li><a href="#innovations" class="mobile-nav-item" data-i18n="nav_innovations">⭐ Innovations</a></li>
+            <li><a href="#paiements" class="mobile-nav-item" data-i18n="nav_payments">💳 Paiement</a></li>
+            <li><a href="#particuliers" class="mobile-nav-item" data-i18n="nav_individuals">👤 Particulier</a></li>
+            <li><a href="#commercants" class="mobile-nav-item" data-i18n="nav_merchants">🏪 Commerçant</a></li>
+          </ul>
+
+          <div class="mobile-nav-divider"></div>
+
+          <!-- Espace Connexion / Profil Mobile -->
+          <div id="mobile-nav-auth-container" class="mobile-nav-auth-box">
+            <button id="mobile-nav-login-btn" class="btn btn-primary nav-login-btn" style="width: 100%; font-size: 14.5px; padding: 12px;" data-i18n="nav_login">
+              🔐 Connexion
+            </button>
+          </div>
+
+          <div class="mobile-nav-divider"></div>
+
+          <!-- Sélecteur de Langue Mobile : 🇫🇷 Français / 🇸🇳 Wolof -->
+          <div class="mobile-lang-box">
+            <div class="mobile-lang-title">Langue / Làkk :</div>
+            <div class="mobile-lang-options">
+              <button class="mobile-lang-option-btn active" data-lang="fr">🇫🇷 Français</button>
+              <button class="mobile-lang-option-btn" data-lang="wo">🇸🇳 Wolof</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -2219,7 +2280,7 @@
   <!-- CONTENEUR DES TOASTS NOTIFICATIONS -->
   <div id="toast-container" class="toast-container"></div>
 
-  <script src="i18n.js"></script>
-  <script src="app.js"></script>
+  <script type="module" src="i18n.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

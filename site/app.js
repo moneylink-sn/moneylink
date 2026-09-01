@@ -3,6 +3,13 @@
  * Connectée à l'API PostgreSQL en temps réel (Parcours Client & Marchand)
  */
 
+import { I18n, translations } from './i18n.js';
+
+if (typeof window !== 'undefined') {
+  window.I18n = I18n;
+  window.translations = translations;
+}
+
 // 1. Configuration de l'API Backend MoneyLink
 const API_BASE_URL = window.MONEYLINK_API_URL || (
   (typeof window !== 'undefined' && window.location && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
@@ -479,6 +486,7 @@ const Auth = {
 
   updateUI() {
     const authContainer = document.getElementById('nav-auth-container');
+    const mobileAuthContainer = document.getElementById('mobile-nav-auth-container');
     const portalSection = document.getElementById('user-portal-section');
     const clientView = document.getElementById('client-portal-view');
     const merchantView = document.getElementById('merchant-portal-view');
@@ -507,6 +515,7 @@ const Auth = {
         ? (AppState.user.merchant?.business_name || `${AppState.user.first_name} Store`)
         : `${AppState.user.first_name} ${AppState.user.last_name}`;
 
+      // 1. Interface Desktop
       authContainer.innerHTML = `
         <div class="user-nav-dropdown">
           <button id="user-menu-btn" class="user-nav-btn">
@@ -537,7 +546,47 @@ const Auth = {
         </div>
       `;
 
-      // Event Listeners Menu Utilisateur
+      // 2. Interface Mobile
+      if (mobileAuthContainer) {
+        mobileAuthContainer.innerHTML = `
+          <div style="background: var(--surface-alt); border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 14px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+              <span style="font-size: 22px;">${isSuperAdmin ? '👑' : (isMerchant ? '🏪' : '👤')}</span>
+              <div>
+                <div style="font-weight: 700; font-size: 14.5px; color: var(--secondary);">${escapeHTML(displayName)}</div>
+                <span class="user-menu-role-tag">${roleLabel}</span>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              ${isSuperAdmin ? `
+                <a class="btn btn-outline btn-sm" href="https://moneylink-1.onrender.com" target="_blank" rel="noopener" style="justify-content: center; color: #00A86B; border-color: #00A86B; font-weight: 700;">
+                  ⚙️ Console Super Admin
+                </a>
+              ` : ''}
+              <button id="mobile-my-space-btn" class="btn btn-primary btn-sm" style="width: 100%;">
+                📊 Mon Espace (${isMerchant ? 'Ventes & Stock' : 'Mes Commandes'})
+              </button>
+              <button id="mobile-logout-btn" class="btn btn-outline btn-sm" style="width: 100%; color: #EF4444; border-color: #FCA5A5;">
+                🚪 Déconnexion
+              </button>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('mobile-my-space-btn')?.addEventListener('click', () => {
+          if (window.MobileNav) MobileNav.close();
+          portalSection.style.display = 'block';
+          portalSection.scrollIntoView({ behavior: 'smooth' });
+          this.loadUserDashboard();
+        });
+
+        document.getElementById('mobile-logout-btn')?.addEventListener('click', () => {
+          if (window.MobileNav) MobileNav.close();
+          this.logout();
+        });
+      }
+
+      // Event Listeners Menu Utilisateur Desktop
       const menuBtn = document.getElementById('user-menu-btn');
       const menuPopover = document.getElementById('user-menu-popover');
       if (menuBtn && menuPopover) {
@@ -570,9 +619,10 @@ const Auth = {
 
       this.loadUserDashboard();
     } else {
+      // 1. Interface Desktop déconnectée
       authContainer.innerHTML = `
-        <button id="nav-login-btn" class="btn btn-primary btn-sm">
-          Connexion / Compte
+        <button id="nav-login-btn" class="btn btn-primary btn-sm nav-login-btn" data-i18n="nav_login">
+          🔐 Connexion
         </button>
       `;
 
@@ -580,9 +630,28 @@ const Auth = {
         Modal.open('auth-modal');
       });
 
+      // 2. Interface Mobile déconnectée
+      if (mobileAuthContainer) {
+        mobileAuthContainer.innerHTML = `
+          <button id="mobile-nav-login-btn" class="btn btn-primary nav-login-btn" style="width: 100%; font-size: 14.5px; padding: 12px;" data-i18n="nav_login">
+            🔐 Connexion
+          </button>
+        `;
+
+        document.getElementById('mobile-nav-login-btn')?.addEventListener('click', () => {
+          if (window.MobileNav) MobileNav.close();
+          Modal.open('auth-modal');
+        });
+      }
+
       portalSection.style.display = 'none';
       clientView.style.display = 'none';
       merchantView.style.display = 'none';
+    }
+
+    // Ré-application des traductions pour les boutons générés dynamiquement
+    if (window.I18n) {
+      window.I18n.applyToDOM();
     }
   },
 
@@ -878,7 +947,7 @@ const Cart = {
   },
 
   updateUI() {
-    const badge = document.getElementById('cart-badge-count');
+    const badges = document.querySelectorAll('.cart-badge-count, #cart-badge-count');
     const container = document.getElementById('cart-items-container');
     const subtotalEl = document.getElementById('cart-subtotal');
     const feeEl = document.getElementById('cart-escrow-fee');
@@ -886,7 +955,9 @@ const Cart = {
     const checkoutBtn = document.getElementById('cart-checkout-btn');
 
     const totalCount = AppState.cart.reduce((sum, item) => sum + item.quantity, 0);
-    if (badge) badge.textContent = totalCount.toString();
+    badges.forEach(badge => {
+      badge.textContent = totalCount.toString();
+    });
 
     if (!container) return;
 
@@ -2482,34 +2553,159 @@ const I18nModule = {
 
     const menuBtn = document.getElementById('lang-menu-btn');
     const popover = document.getElementById('lang-menu-popover');
+    const langDropdown = document.getElementById('nav-lang-dropdown');
 
     if (menuBtn && popover) {
       menuBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        popover.classList.toggle('active');
+        const isOpen = popover.classList.toggle('active');
+        menuBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
       });
 
-      document.addEventListener('click', () => popover.classList.remove('active'));
+      // Fermeture lors d'un clic extérieur
+      document.addEventListener('click', (e) => {
+        if (langDropdown && !langDropdown.contains(e.target)) {
+          popover.classList.remove('active');
+          menuBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
+
+      // Fermeture avec la touche Échap
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && popover.classList.contains('active')) {
+          popover.classList.remove('active');
+          menuBtn.setAttribute('aria-expanded', 'false');
+          menuBtn.focus();
+        }
+      });
     }
 
+    // Sélecteur Navbar Popover (Desktop & Mobile)
     document.querySelectorAll('.lang-option-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
         const lang = btn.getAttribute('data-lang');
         if (window.I18n && lang) {
           window.I18n.setLanguage(lang);
           popover?.classList.remove('active');
+          menuBtn?.setAttribute('aria-expanded', 'false');
+          this.updateActiveButtons(lang);
           Toast.show(lang === 'wo' ? '🇸🇳 Làkku Wolof duggal nañu ko !' : '🇫🇷 Langue changée en Français !', 'info');
         }
       });
     });
 
+    // Sélecteur Drawer Mobile
+    document.querySelectorAll('.mobile-lang-option-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const lang = btn.getAttribute('data-lang');
+        if (window.I18n && lang) {
+          window.I18n.setLanguage(lang);
+          this.updateActiveButtons(lang);
+          Toast.show(lang === 'wo' ? '🇸🇳 Làkku Wolof duggal nañu ko !' : '🇫🇷 Langue changée en Français !', 'info');
+        }
+      });
+    });
+
+    this.updateActiveButtons(window.I18n?.currentLang || 'fr');
+
     window.addEventListener('moneylink:languageChanged', (e) => {
+      const currentLang = e.detail?.lang || window.I18n?.currentLang || 'fr';
+      this.updateActiveButtons(currentLang);
+      Auth.updateUI();
       if (AppState.user) {
         AiModule.loadInsights();
       }
     });
+  },
+
+  updateActiveButtons(lang) {
+    document.querySelectorAll('.lang-option-btn, .mobile-lang-option-btn').forEach(btn => {
+      const isCurrent = btn.getAttribute('data-lang') === lang;
+      if (isCurrent) {
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
+      } else {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-selected', 'false');
+      }
+    });
   }
 };
+
+// ============================================================================
+// 10g. MODULE NAVIGATION MOBILE RESPONSIVE (☰)
+// ============================================================================
+const MobileNav = {
+  drawer: null,
+  toggleBtn: null,
+  backdrop: null,
+  closeBtn: null,
+
+  init() {
+    this.drawer = document.getElementById('mobile-nav-drawer');
+    this.toggleBtn = document.getElementById('mobile-menu-toggle-btn');
+    this.backdrop = document.getElementById('mobile-nav-backdrop');
+    this.closeBtn = document.getElementById('close-mobile-menu-btn');
+
+    this.toggleBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggle();
+    });
+
+    this.closeBtn?.addEventListener('click', () => this.close());
+    this.backdrop?.addEventListener('click', () => this.close());
+
+    // Fermeture automatique au clic sur un lien de navigation
+    document.querySelectorAll('.mobile-nav-item, #mobile-nav-logo').forEach(link => {
+      link.addEventListener('click', () => {
+        this.close();
+      });
+    });
+
+    // Touche Escape pour fermer le tiroir
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.isOpen()) {
+        this.close();
+      }
+    });
+  },
+
+  isOpen() {
+    return this.drawer?.classList.contains('active') || false;
+  },
+
+  open() {
+    if (this.drawer) {
+      this.drawer.classList.add('active');
+      this.drawer.setAttribute('aria-hidden', 'false');
+      this.toggleBtn?.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+  },
+
+  close() {
+    if (this.drawer) {
+      this.drawer.classList.remove('active');
+      this.drawer.setAttribute('aria-hidden', 'true');
+      this.toggleBtn?.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+  },
+
+  toggle() {
+    if (this.isOpen()) {
+      this.close();
+    } else {
+      this.open();
+    }
+  }
+};
+
+if (typeof window !== 'undefined') {
+  window.MobileNav = MobileNav;
+}
 
 // ============================================================================
 // 11. GESTION DES MODALES & DIALOGUES INTERACTIFS
@@ -2546,6 +2742,7 @@ const Modal = {
 // ============================================================================
 document.addEventListener('DOMContentLoaded', () => {
   I18nModule.init();
+  MobileNav.init();
   Tracker.init();
   Auth.init();
   Catalog.init();
@@ -3133,4 +3330,24 @@ function initHashRouter() {
 
   window.addEventListener('hashchange', handleHash);
   handleHash();
+}
+
+if (typeof window !== 'undefined') {
+  window.AppState = AppState;
+  window.Tracker = Tracker;
+  window.Api = Api;
+  window.Toast = Toast;
+  window.Auth = Auth;
+  window.Catalog = Catalog;
+  window.Cart = Cart;
+  window.Checkout = Checkout;
+  window.ClientPortal = ClientPortal;
+  window.MerchantPortal = MerchantPortal;
+  window.AiModule = AiModule;
+  window.ShieldModule = ShieldModule;
+  window.BusinessModule = BusinessModule;
+  window.InvoiceModule = InvoiceModule;
+  window.I18nModule = I18nModule;
+  window.MobileNav = MobileNav;
+  window.Modal = Modal;
 }
